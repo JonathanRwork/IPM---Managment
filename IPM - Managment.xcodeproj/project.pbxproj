@@ -6,6 +6,15 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		AB5E04A12F744FBF00F031D3 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = AB5E04A02F744FBF00F031D3 /* FirebaseAuth */; };
+		AB5E04A32F744FBF00F031D3 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = AB5E04A22F744FBF00F031D3 /* FirebaseFirestore */; };
+		AB5E04A52F744FBF00F031D3 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = AB5E04A42F744FBF00F031D3 /* FirebaseStorage */; };
+		ABB671BA2F7489EB00963AD9 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = ABB671B92F7489EB00963AD9 /* GoogleSignIn */; };
+		ABB671BC2F7489EB00963AD9 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = ABB671BB2F7489EB00963AD9 /* GoogleSignInSwift */; };
+		ABCCDA092F75A28400EFC7AC /* StoreKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCCDA082F75A28400EFC7AC /* StoreKitManager.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		AB5E04832F744DEC00F031D3 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +36,7 @@
 		AB5E04752F744DEC00F031D3 /* IPM - Managment.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "IPM - Managment.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AB5E04822F744DEC00F031D3 /* IPM - ManagmentTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "IPM - ManagmentTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AB5E048C2F744DEC00F031D3 /* IPM - ManagmentUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "IPM - ManagmentUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		ABCCDA082F75A28400EFC7AC /* StoreKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -52,6 +62,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ABB671BC2F7489EB00963AD9 /* GoogleSignInSwift in Frameworks */,
+				AB5E04A12F744FBF00F031D3 /* FirebaseAuth in Frameworks */,
+				ABB671BA2F7489EB00963AD9 /* GoogleSignIn in Frameworks */,
+				AB5E04A32F744FBF00F031D3 /* FirebaseFirestore in Frameworks */,
+				AB5E04A52F744FBF00F031D3 /* FirebaseStorage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -79,8 +94,11 @@
 				AB5E04852F744DEC00F031D3 /* IPM - ManagmentTests */,
 				AB5E048F2F744DEC00F031D3 /* IPM - ManagmentUITests */,
 				AB5E04762F744DEC00F031D3 /* Products */,
+				ABB671BF2F748C2600963AD9 /* en.lproj */,
+				ABCCDA082F75A28400EFC7AC /* StoreKitManager.swift */,
 			);
 			sourceTree = "<group>";
+			usesTabs = 0;
 		};
 		AB5E04762F744DEC00F031D3 /* Products */ = {
 			isa = PBXGroup;
@@ -90,6 +108,14 @@
 				AB5E048C2F744DEC00F031D3 /* IPM - ManagmentUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		ABB671BF2F748C2600963AD9 /* en.lproj */ = {
+			isa = PBXGroup;
+			children = (
+				ABB671C02F748C3500963AD9 /* Localizable.strings */,
+			);
+			path = en.lproj;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -112,6 +138,11 @@
 			);
 			name = "IPM - Managment";
 			packageProductDependencies = (
+				AB5E04A02F744FBF00F031D3 /* FirebaseAuth */,
+				AB5E04A22F744FBF00F031D3 /* FirebaseFirestore */,
+				AB5E04A42F744FBF00F031D3 /* FirebaseStorage */,
+				ABB671B92F7489EB00963AD9 /* GoogleSignIn */,
+				ABB671BB2F7489EB00963AD9 /* GoogleSignInSwift */,
 			);
 			productName = "IPM - Managment";
 			productReference = AB5E04752F744DEC00F031D3 /* IPM - Managment.app */;
@@ -175,6 +206,7 @@
 				TargetAttributes = {
 					AB5E04742F744DEC00F031D3 = {
 						CreatedOnToolsVersion = 26.4;
+						LastSwiftMigration = 2640;
 					};
 					AB5E04812F744DEC00F031D3 = {
 						CreatedOnToolsVersion = 26.4;
@@ -195,6 +227,10 @@
 			);
 			mainGroup = AB5E046C2F744DEC00F031D3;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AB5E049F2F744FBF00F031D3 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				ABB671B82F7489EB00963AD9 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AB5E04762F744DEC00F031D3 /* Products */;
 			projectDirPath = "";
@@ -236,6 +272,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ABCCDA092F75A28400EFC7AC /* StoreKitManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -267,6 +304,16 @@
 			targetProxy = AB5E048D2F744DEC00F031D3 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		ABB671C02F748C3500963AD9 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		AB5E04942F744DEC00F031D3 /* Debug */ = {
@@ -390,20 +437,40 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				AUTOMATION_APPLE_EVENTS = NO;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 3466SG4657;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = NO;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "IPM---Managment-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "IPM - Managment";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Die App kann exportierte Grundrisse in deiner Fotomediathek speichern.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Die App benötigt Zugriff auf deine Fotos, um Grundrisse auszuwählen.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = "";
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -413,15 +480,22 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "IPM-Managment.IPM---Managment";
+				PRODUCT_BUNDLE_IDENTIFIER = "IPM-Managment.IPM-Managment";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
+				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
+				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
+				RUNTIME_EXCEPTION_ALLOW_UNSIGNED_EXECUTABLE_MEMORY = NO;
+				RUNTIME_EXCEPTION_DEBUGGING_TOOL = NO;
+				RUNTIME_EXCEPTION_DISABLE_EXECUTABLE_PAGE_PROTECTION = NO;
+				RUNTIME_EXCEPTION_DISABLE_LIBRARY_VALIDATION = NO;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
@@ -434,20 +508,40 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				AUTOMATION_APPLE_EVENTS = NO;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 3466SG4657;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = NO;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = YES;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "IPM---Managment-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "IPM - Managment";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Die App kann exportierte Grundrisse in deiner Fotomediathek speichern.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Die App benötigt Zugriff auf deine Fotos, um Grundrisse auszuwählen.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = "";
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -457,9 +551,15 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "IPM-Managment.IPM---Managment";
+				PRODUCT_BUNDLE_IDENTIFIER = "IPM-Managment.IPM-Managment";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
+				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
+				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
+				RUNTIME_EXCEPTION_ALLOW_UNSIGNED_EXECUTABLE_MEMORY = NO;
+				RUNTIME_EXCEPTION_DEBUGGING_TOOL = NO;
+				RUNTIME_EXCEPTION_DISABLE_EXECUTABLE_PAGE_PROTECTION = NO;
+				RUNTIME_EXCEPTION_DISABLE_LIBRARY_VALIDATION = NO;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
@@ -615,6 +715,53 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AB5E049F2F744FBF00F031D3 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.11.0;
+			};
+		};
+		ABB671B82F7489EB00963AD9 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.1.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AB5E04A02F744FBF00F031D3 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB5E049F2F744FBF00F031D3 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		AB5E04A22F744FBF00F031D3 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB5E049F2F744FBF00F031D3 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		AB5E04A42F744FBF00F031D3 /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB5E049F2F744FBF00F031D3 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
+		};
+		ABB671B92F7489EB00963AD9 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = ABB671B82F7489EB00963AD9 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		ABB671BB2F7489EB00963AD9 /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = ABB671B82F7489EB00963AD9 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AB5E046D2F744DEC00F031D3 /* Project object */;
 }
