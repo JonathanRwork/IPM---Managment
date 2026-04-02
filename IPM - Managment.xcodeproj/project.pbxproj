@@ -12,7 +12,6 @@
 		AB5E04A52F744FBF00F031D3 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = AB5E04A42F744FBF00F031D3 /* FirebaseStorage */; };
 		ABB671BA2F7489EB00963AD9 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = ABB671B92F7489EB00963AD9 /* GoogleSignIn */; };
 		ABB671BC2F7489EB00963AD9 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = ABB671BB2F7489EB00963AD9 /* GoogleSignInSwift */; };
-		ABCCDA092F75A28400EFC7AC /* StoreKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCCDA082F75A28400EFC7AC /* StoreKitManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -36,7 +35,6 @@
 		AB5E04752F744DEC00F031D3 /* IPM - Managment.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "IPM - Managment.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AB5E04822F744DEC00F031D3 /* IPM - ManagmentTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "IPM - ManagmentTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AB5E048C2F744DEC00F031D3 /* IPM - ManagmentUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "IPM - ManagmentUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		ABCCDA082F75A28400EFC7AC /* StoreKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -95,7 +93,6 @@
 				AB5E048F2F744DEC00F031D3 /* IPM - ManagmentUITests */,
 				AB5E04762F744DEC00F031D3 /* Products */,
 				ABB671BF2F748C2600963AD9 /* en.lproj */,
-				ABCCDA082F75A28400EFC7AC /* StoreKitManager.swift */,
 			);
 			sourceTree = "<group>";
 			usesTabs = 0;
@@ -272,7 +269,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				ABCCDA092F75A28400EFC7AC /* StoreKitManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

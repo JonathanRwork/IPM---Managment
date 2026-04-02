@@ -256,7 +256,7 @@ private enum IPMTranslationCatalog {
         "Add trap": "Add trap",
         "Sort": "Sort",
         "Done": "Done",
-        "No floor plan": "No floor plan",
+        "Room area for trap positions": "Room area for trap positions",
         "Installed": "Installed",
         "Inspection interval": "Inspection interval",
         "Next inspection": "Next inspection",
@@ -277,7 +277,7 @@ private enum IPMTranslationCatalog {
         "Empty": "Empty",
         "pests": "pests",
         "Trap number (e.g. 1031-1)": "Trap number (e.g. 1031-1)",
-        "The trap starts centered on the floor plan. You can adjust it later.": "The trap starts centered on the floor plan. You can adjust it later.",
+        "The trap starts centered in the room area. You can adjust it later.": "The trap starts centered in the room area. You can adjust it later.",
         "New trap": "New trap",
         "Inspection saved.": "Inspection saved.",
         "Share report": "Share report",
@@ -502,7 +502,7 @@ private enum IPMTranslationCatalog {
         "Add trap": "Add trap",
         "Sort": "Sort",
         "Done": "Done",
-        "No floor plan": "No floor plan",
+        "Room area for trap positions": "Room area for trap positions",
         "Installed": "Installed",
         "Inspection interval": "Inspection interval",
         "Next inspection": "Next inspection",
@@ -523,7 +523,7 @@ private enum IPMTranslationCatalog {
         "Empty": "Empty",
         "pests": "pests",
         "Trap number (e.g. 1031-1)": "Trap number (e.g. 1031-1)",
-        "The trap starts centered on the floor plan. You can adjust it later.": "The trap starts centered on the floor plan. You can adjust it later.",
+        "The trap starts centered in the room area. You can adjust it later.": "The trap starts centered in the room area. You can adjust it later.",
         "New trap": "New trap",
         "Inspection saved.": "Inspection saved.",
         "Share report": "Share report",
@@ -748,7 +748,7 @@ private enum IPMTranslationCatalog {
         "Add trap": "Add trap",
         "Sort": "Sort",
         "Done": "Done",
-        "No floor plan": "No floor plan",
+        "Room area for trap positions": "Room area for trap positions",
         "Installed": "Installed",
         "Inspection interval": "Inspection interval",
         "Next inspection": "Next inspection",
@@ -769,7 +769,7 @@ private enum IPMTranslationCatalog {
         "Empty": "Empty",
         "pests": "pests",
         "Trap number (e.g. 1031-1)": "Trap number (e.g. 1031-1)",
-        "The trap starts centered on the floor plan. You can adjust it later.": "The trap starts centered on the floor plan. You can adjust it later.",
+        "The trap starts centered in the room area. You can adjust it later.": "The trap starts centered in the room area. You can adjust it later.",
         "New trap": "New trap",
         "Inspection saved.": "Inspection saved.",
         "Share report": "Share report",
@@ -929,6 +929,7 @@ struct IPMFormField: View {
     let label: String
     @Binding var text: String
     let icon: String
+    var iconColor: Color = IPMColors.brownMid
     var keyboard: IPMKeyboardType = .default
     var isSecure: Bool = false
 
@@ -936,7 +937,7 @@ struct IPMFormField: View {
         HStack(spacing: 10) {
             Image(systemName: icon)
                 .font(.system(size: 13))
-                .foregroundStyle(IPMColors.brownMid)
+                .foregroundStyle(iconColor)
                 .frame(width: 18)
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
@@ -1005,18 +1006,41 @@ struct IPMTextField: View {
 
 // MARK: - Empty State
 struct IPMEmptyState: View {
+    @Environment(\.colorScheme) private var scheme
     let icon: String
     let title: String
     let subtitle: String
 
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.system(size: 48))
-                .foregroundStyle(IPMColors.green.opacity(0.3))
+            ZStack {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                IPMColors.green.opacity(0.16),
+                                IPMColors.greenLight.opacity(0.3),
+                                AdaptiveColor.cardSecondary(scheme)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 164, height: 112)
+
+                Circle()
+                    .fill(IPMColors.green.opacity(0.18))
+                    .frame(width: 72, height: 72)
+                    .offset(x: 36, y: -26)
+
+                Image(systemName: icon)
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(IPMColors.greenDark)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
             Text(title)
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .foregroundStyle(IPMColors.darkTextPrimary)
+                .foregroundStyle(AdaptiveColor.textPrimary(scheme))
             Text(subtitle)
                 .font(.system(size: 14))
                 .foregroundStyle(IPMColors.brownMid)

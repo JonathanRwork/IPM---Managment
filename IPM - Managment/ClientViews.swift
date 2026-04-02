@@ -1,6 +1,9 @@
 import SwiftUI
 import MapKit
 import Combine
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct RoomListItem: Identifiable {
     let clientId: String
@@ -169,12 +172,18 @@ struct RoomListView: View {
                             NavigationLink(destination: FloorDetailView(floor: item.floor, clientId: item.clientId)) {
                                 HStack(spacing: 12) {
                                     ZStack {
-                                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                            .fill(IPMColors.green.opacity(0.16))
-                                            .frame(width: 38, height: 38)
-                                        Image(systemName: "map.fill")
-                                            .font(.system(size: 15, weight: .semibold))
-                                            .foregroundStyle(IPMColors.green)
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [IPMColors.green.opacity(0.22), IPMColors.greenLight.opacity(0.5)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                )
+                                            )
+                                            .frame(width: 46, height: 46)
+                                        Image(systemName: "door.left.hand.open")
+                                            .font(.system(size: 18, weight: .semibold))
+                                            .foregroundStyle(IPMColors.greenDark)
                                     }
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(item.floor.name)
@@ -324,12 +333,18 @@ struct ClientRow: View {
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(IPMColors.brownMid.opacity(0.12))
-                    .frame(width: 42, height: 42)
-                Text(String(client.name.prefix(1)).uppercased())
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .foregroundStyle(IPMColors.brownMid)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [IPMColors.greenDark, IPMColors.green],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 52, height: 52)
+                Image(systemName: "building.2.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white)
             }
             VStack(alignment: .leading, spacing: 3) {
                 Text(client.name)
@@ -377,7 +392,7 @@ struct ClientDetailView: View {
             List {
                 Section {
                     InfoRow(icon: "building.2.fill", label: ipmLocalized(appLanguage, de: "Kunde", en: "Client"), value: currentClient.name, color: IPMColors.greenDark)
-                    InfoRow(icon: "mappin.circle.fill", label: ipmLocalized(appLanguage, de: "Adresse", en: "Address"), value: currentClient.adresse, color: IPMColors.brown)
+                    InfoRow(icon: "mappin.circle.fill", label: ipmLocalized(appLanguage, de: "Adresse", en: "Address"), value: currentClient.adresse, color: IPMColors.green)
                     AddressStaticMapView(address: currentClient.adresse, appLanguage: appLanguage)
                     if !currentClient.kontaktName.isEmpty {
                         InfoRow(icon: "person.fill", label: ipmLocalized(appLanguage, de: "Ansprechpartner", en: "Contact"), value: currentClient.kontaktName, color: IPMColors.green)
@@ -413,9 +428,21 @@ struct ClientDetailView: View {
                                         .font(.system(size: 14))
                                         .foregroundStyle(IPMColors.green)
                                 }
-                                Text(floor.name)
-                                    .font(.system(size: 15, weight: .medium))
-                                    .foregroundStyle(AdaptiveColor.textPrimary(scheme))
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(floor.name)
+                                        .font(.system(size: 15, weight: .medium))
+                                        .foregroundStyle(AdaptiveColor.textPrimary(scheme))
+                                    if let roomSummary = [floor.gebaeude, floor.stockwerk]
+                                        .compactMap({ $0?.trimmingCharacters(in: .whitespacesAndNewlines) })
+                                        .filter({ !$0.isEmpty })
+                                        .joined(separator: " · ")
+                                        .nilIfEmpty {
+                                        Text(roomSummary)
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(IPMColors.brownMid)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
                             .padding(.vertical, 2)
                         }
@@ -464,15 +491,6 @@ struct ClientDetailView: View {
                     .disabled(isExporting)
                     .listRowBackground(AdaptiveColor.card(scheme))
 
-                    if let exportFileURL {
-                        ShareLink(item: exportFileURL) {
-                            Label(ipmLocalized(appLanguage, de: "Export teilen", en: "Share export"), systemImage: "doc.badge.arrow.up")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(IPMColors.greenDark)
-                        }
-                        .listRowBackground(AdaptiveColor.card(scheme))
-                    }
-
                     if let exportError {
                         Text(exportError)
                             .font(.system(size: 12))
@@ -500,6 +518,20 @@ struct ClientDetailView: View {
         .sheet(isPresented: $showEditClient) {
             EditClientView(client: currentClient) { updatedClient in
                 currentClient = updatedClient
+            }
+        }
+        .sheet(
+            isPresented: Binding(
+                get: { exportFileURL != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        exportFileURL = nil
+                    }
+                }
+            )
+        ) {
+            if let exportFileURL {
+                ShareSheet(activityItems: [exportFileURL])
             }
         }
         .alert(ipmLocalized(appLanguage, de: "Limit erreicht", en: "Limit reached"), isPresented: $showUpgradeAlert) {
@@ -674,17 +706,21 @@ private struct AddressStaticMapView: View {
                 .padding(.vertical, 4)
 
                 if let destinationMapItem {
-                    Button {
-                        openRoute(to: destinationMapItem)
-                    } label: {
-                        Label(
-                            ipmLocalized(appLanguage, de: "Route starten", en: "Start route"),
-                            systemImage: "car.fill"
-                        )
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(IPMColors.green)
+                    HStack {
+                        Spacer()
+                        Button {
+                            openRoute(to: destinationMapItem)
+                        } label: {
+                            Label(
+                                ipmLocalized(appLanguage, de: "Route starten", en: "Start route"),
+                                systemImage: "car.fill"
+                            )
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(IPMColors.green)
+                        }
+                        .buttonStyle(.plain)
+                        Spacer()
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
@@ -860,7 +896,8 @@ private struct AddressLookupField: View {
             IPMFormField(
                 label: ipmLocalized(appLanguage, de: "Adresse *", en: "Address *"),
                 text: $text,
-                icon: "mappin"
+                icon: "mappin",
+                iconColor: IPMColors.green
             )
 
             if viewModel.shouldShowSuggestions &&
@@ -897,20 +934,40 @@ private struct AddressLookupField: View {
             }
 
             if let previewRegion = viewModel.mapPreviewRegion {
-                Map(
-                    position: .constant(.region(previewRegion)),
-                    interactionModes: [.zoom, .pan]
-                ) {
-                    Marker(
-                        "",
-                        coordinate: previewRegion.center
-                    )
-                }
-                .frame(height: 180)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(IPMColors.green.opacity(0.2), lineWidth: 1)
+                VStack(alignment: .leading, spacing: 8) {
+                    Map(
+                        position: .constant(.region(previewRegion)),
+                        interactionModes: [.zoom, .pan]
+                    ) {
+                        Marker(
+                            "",
+                            coordinate: previewRegion.center
+                        )
+                    }
+                    .frame(height: 180)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(IPMColors.green.opacity(0.2), lineWidth: 1)
+                    }
+
+                    if let destinationMapItem = viewModel.destinationMapItem {
+                        HStack {
+                            Spacer()
+                            Button {
+                                openRoute(to: destinationMapItem)
+                            } label: {
+                                Label(
+                                    ipmLocalized(appLanguage, de: "Route starten", en: "Start route"),
+                                    systemImage: "car.fill"
+                                )
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(IPMColors.green)
+                            }
+                            .buttonStyle(.plain)
+                            Spacer()
+                        }
+                    }
                 }
             }
         }
@@ -932,6 +989,9 @@ private struct AddressLookupField: View {
     }
 
     private func apply(completion: MKLocalSearchCompletion) async {
+        typingFinishedTask?.cancel()
+        viewModel.shouldShowSuggestions = false
+        viewModel.clearResults()
         if let resolvedAddress = await viewModel.resolve(completion: completion) {
             text = resolvedAddress
         } else {
@@ -942,7 +1002,24 @@ private struct AddressLookupField: View {
         }
         await viewModel.finishTyping()
     }
+
+    private func openRoute(to destination: MKMapItem) {
+        let options = [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving]
+        MKMapItem.openMaps(with: [MKMapItem.forCurrentLocation(), destination], launchOptions: options)
+    }
 }
+
+#if canImport(UIKit)
+private struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+#endif
 
 @MainActor
 private final class AddressSearchViewModel: NSObject, ObservableObject, MKLocalSearchCompleterDelegate {
@@ -954,6 +1031,7 @@ private final class AddressSearchViewModel: NSObject, ObservableObject, MKLocalS
     }
     @Published var results: [MKLocalSearchCompletion] = []
     @Published var mapPreviewRegion: MKCoordinateRegion?
+    @Published var destinationMapItem: MKMapItem?
     @Published var shouldShowSuggestions = true
 
     private let completer = MKLocalSearchCompleter()
@@ -990,6 +1068,7 @@ private final class AddressSearchViewModel: NSObject, ObservableObject, MKLocalS
             let response = try await search.start()
             if let first = response.mapItems.first {
                 updateMapRegion(from: first)
+                destinationMapItem = first
                 return formatAddress(from: first)
             }
         } catch {
@@ -1003,6 +1082,7 @@ private final class AddressSearchViewModel: NSObject, ObservableObject, MKLocalS
         let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             mapPreviewRegion = nil
+            destinationMapItem = nil
             return
         }
         mapSearchTask = Task { [weak self] in
@@ -1025,11 +1105,14 @@ private final class AddressSearchViewModel: NSObject, ObservableObject, MKLocalS
             let response = try await search.start()
             guard let first = response.mapItems.first else {
                 mapPreviewRegion = nil
+                destinationMapItem = nil
                 return
             }
             updateMapRegion(from: first)
+            destinationMapItem = first
         } catch {
             mapPreviewRegion = nil
+            destinationMapItem = nil
         }
     }
 
@@ -1068,6 +1151,11 @@ struct AddFloorView: View {
     @Environment(\.colorScheme) var scheme
     @AppStorage("appLanguage") private var appLanguage = "de"
     @State private var name = ""
+    @State private var stockwerk = ""
+    @State private var gebaeude = ""
+    @State private var beschreibung = ""
+    @State private var besuchsfrequenz = ""
+    @State private var erreichbarkeit: RoomAccessibility = .treppe
     @State private var limitError: String?
 
     private var canSave: Bool {
@@ -1081,7 +1169,28 @@ struct AddFloorView: View {
                 List {
                     Section {
                         IPMFormField(label: ipmLocalized(appLanguage, de: "Raumname", en: "Room name"), text: $name, icon: "map")
-                    } header: { SectionLabel(ipmLocalized(appLanguage, de: "z.B. EG · Lager · Keller · OG", en: "e.g. ground floor · storage · basement · upper floor")) }
+                        IPMFormField(label: ipmLocalized(appLanguage, de: "Stockwerk", en: "Floor level"), text: $stockwerk, icon: "stairs")
+                        IPMFormField(label: ipmLocalized(appLanguage, de: "Gebäude", en: "Building"), text: $gebaeude, icon: "building.2")
+                        IPMFormField(label: ipmLocalized(appLanguage, de: "Besuchsfrequenz", en: "Visit frequency"), text: $besuchsfrequenz, icon: "calendar")
+                    } header: { SectionLabel(ipmLocalized(appLanguage, de: "Name und Zuordnung", en: "Name and assignment")) }
+                    .listRowBackground(AdaptiveColor.card(scheme))
+
+                    Section {
+                        Picker(ipmLocalized(appLanguage, de: "Erreichbarkeit", en: "Accessibility"), selection: $erreichbarkeit) {
+                            ForEach(RoomAccessibility.allCases, id: \.self) { option in
+                                Text(option.title(language: appLanguage)).tag(option)
+                            }
+                        }
+                        .tint(IPMColors.green)
+                    } header: { SectionLabel(ipmLocalized(appLanguage, de: "Zugang", en: "Access")) }
+                    .listRowBackground(AdaptiveColor.card(scheme))
+
+                    Section {
+                        TextField(ipmLocalized(appLanguage, de: "Beschreibung, Besonderheiten, Risiken...", en: "Description, special notes, risks..."), text: $beschreibung, axis: .vertical)
+                            .lineLimit(3...6)
+                            .font(.system(size: 14))
+                            .foregroundStyle(AdaptiveColor.textPrimary(scheme))
+                    } header: { SectionLabel(ipmLocalized(appLanguage, de: "Beschreibung", en: "Description")) }
                     .listRowBackground(AdaptiveColor.card(scheme))
 
                     if let limitError {
@@ -1108,7 +1217,15 @@ struct AddFloorView: View {
                                 limitError = msg
                                 return
                             }
-                            try? await FirestoreService.shared.saveFloor(Floor(name: name), clientId: clientId)
+                            let floor = Floor(
+                                name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+                                stockwerk: stockwerk.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+                                gebaeude: gebaeude.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+                                beschreibung: beschreibung.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+                                besuchsfrequenz: besuchsfrequenz.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+                                erreichbarkeit: erreichbarkeit
+                            )
+                            try? await FirestoreService.shared.saveFloor(floor, clientId: clientId)
                             await onSave()
                             dismiss()
                         }
@@ -1119,5 +1236,11 @@ struct AddFloorView: View {
                 }
             }
         }
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        isEmpty ? nil : self
     }
 }

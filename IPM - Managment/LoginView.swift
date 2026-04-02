@@ -170,10 +170,8 @@ struct LoginView: View {
     private var topHeader: some View {
         VStack(spacing: 14) {
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("IPM Manager")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundStyle(AdaptiveColor.textPrimary(scheme))
+                VStack(alignment: .leading, spacing: 8) {
+                    brandLockup(compact: true)
                     Text(showSignIn
                          ? ipmLocalized(appLanguage, de: "Schnell anmelden", en: "Quick sign in")
                          : ipmLocalized(appLanguage, de: "Onboarding", en: "Onboarding"))
@@ -237,6 +235,35 @@ struct LoginView: View {
 
     private var signInCard: some View {
         VStack(spacing: 16) {
+            ZStack(alignment: .bottomLeading) {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [IPMColors.greenDark, IPMColors.green, IPMColors.greenLight],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(height: 168)
+
+                Circle()
+                    .fill(.white.opacity(0.16))
+                    .frame(width: 120, height: 120)
+                    .offset(x: 120, y: -50)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Label(ipmLocalized(appLanguage, de: "Sicherer Zugriff", en: "Secure access"), systemImage: "lock.shield.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.92))
+
+                    Text(ipmLocalized(appLanguage, de: "Verwalte Kunden, Räume und Kontrollen ohne visuelles Durcheinander.", en: "Manage clients, rooms, and inspections without visual clutter."))
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(18)
+            }
+
             Text(ipmLocalized(appLanguage, de: "Willkommen zurück", en: "Welcome back"))
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundStyle(AdaptiveColor.textPrimary(scheme))
@@ -392,6 +419,10 @@ struct LoginView: View {
 
     private var onboardingWelcomeStep: some View {
         VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 14) {
+                brandLockup(compact: false)
+            }
+
             Text(ipmLocalized(appLanguage, de: "Willkommen bei IPM Manager", en: "Welcome to IPM Manager"))
                 .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundStyle(AdaptiveColor.textPrimary(scheme))
@@ -406,6 +437,35 @@ struct LoginView: View {
             }
             .font(.system(size: 12, weight: .semibold))
             .foregroundStyle(IPMColors.greenDark)
+        }
+    }
+
+    private func brandLockup(compact: Bool) -> some View {
+        HStack(spacing: compact ? 10 : 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: compact ? 12 : 16, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [IPMColors.greenDark, IPMColors.green],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: compact ? 38 : 52, height: compact ? 38 : 52)
+
+                Image(systemName: "shield.lefthalf.filled.badge.checkmark")
+                    .font(.system(size: compact ? 18 : 24, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+
+            VStack(alignment: .leading, spacing: compact ? 1 : 2) {
+                Text("IPM")
+                    .font(.system(size: compact ? 18 : 22, weight: .black, design: .rounded))
+                    .foregroundStyle(AdaptiveColor.textPrimary(scheme))
+                Text("Manager")
+                    .font(.system(size: compact ? 13 : 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(IPMColors.greenDark)
+            }
         }
     }
 

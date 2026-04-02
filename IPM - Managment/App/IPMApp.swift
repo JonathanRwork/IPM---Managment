@@ -89,8 +89,7 @@ final class SubscriptionManager: ObservableObject {
 
     func canAddClient(currentCount: Int) -> String? {
         guard let max = limits.maxClients, currentCount >= max else { return nil }
-        return ipmLocalized(
-            appLanguage,
+        return localizedSubscriptionMessage(
             de: "Limit erreicht: Im \(tierTitle())-Abo sind maximal \(max) Kunden möglich. Bitte Upgrade durchführen.",
             en: "Limit reached: The \(tierTitle()) plan allows up to \(max) clients. Please upgrade."
         )
@@ -98,8 +97,7 @@ final class SubscriptionManager: ObservableObject {
 
     func canAddRoom(currentCountForClient: Int) -> String? {
         guard let max = limits.maxRoomsPerClient, currentCountForClient >= max else { return nil }
-        return ipmLocalized(
-            appLanguage,
+        return localizedSubscriptionMessage(
             de: "Limit erreicht: Im \(tierTitle())-Abo sind maximal \(max) Räume pro Kunde möglich. Bitte Upgrade durchführen.",
             en: "Limit reached: The \(tierTitle()) plan allows up to \(max) rooms per client. Please upgrade."
         )
@@ -107,11 +105,14 @@ final class SubscriptionManager: ObservableObject {
 
     func canAddTrap(currentCountForRoom: Int) -> String? {
         guard let max = limits.maxTrapsPerRoom, currentCountForRoom >= max else { return nil }
-        return ipmLocalized(
-            appLanguage,
+        return localizedSubscriptionMessage(
             de: "Limit erreicht: Im \(tierTitle())-Abo sind maximal \(max) Fallen pro Raum möglich. Bitte Upgrade durchführen.",
             en: "Limit reached: The \(tierTitle()) plan allows up to \(max) traps per room. Please upgrade."
         )
+    }
+
+    private func localizedSubscriptionMessage(de: String, en: String) -> String {
+        appLanguage.lowercased().hasPrefix("de") ? de : en
     }
 }
 
@@ -422,7 +423,7 @@ class AuthManager: ObservableObject {
     }
 
     private func localized(de: String, en: String) -> String {
-        ipmLocalized(appLanguage, de: de, en: en)
+        appLanguage.lowercased().hasPrefix("de") ? de : en
     }
 
     private func commitProfileChanges(_ request: UserProfileChangeRequest) async throws {

@@ -674,6 +674,38 @@ private struct AdvancedSettingsView: View {
         ZStack {
             AdaptiveColor.background(scheme).ignoresSafeArea()
             List {
+                Section {
+                    ZStack(alignment: .bottomLeading) {
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [IPMColors.greenDark, IPMColors.green, IPMColors.greenLight],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(height: 150)
+
+                        Circle()
+                            .fill(.white.opacity(0.14))
+                            .frame(width: 120, height: 120)
+                            .offset(x: 130, y: -55)
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label(ipmLocalized(appLanguage, de: "Exportzentrale", en: "Export hub"), systemImage: "square.and.arrow.up.circle.fill")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.92))
+                            Text(ipmLocalized(appLanguage, de: "CSV und PDF direkt aus den aktuellen Kundendaten erzeugen.", en: "Generate CSV and PDF directly from your current client data."))
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(18)
+                    }
+                }
+                .listRowBackground(AdaptiveColor.background(scheme))
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+
                 if let message = exportMessage {
                     Section {
                         Text(message)

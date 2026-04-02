@@ -225,6 +225,6 @@ final class StoreKitManager: ObservableObject {
 
     private func localized(de: String, en: String) -> String {
         let appLanguage = UserDefaults.standard.string(forKey: "appLanguage") ?? "de"
-        return ipmLocalized(appLanguage, de: de, en: en)
+        return appLanguage.lowercased().hasPrefix("de") ? de : en
     }
 }

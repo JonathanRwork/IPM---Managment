@@ -228,6 +228,63 @@ class FirestoreService: ObservableObject {
         return values[values.count - 1] - values[values.count - 2]
     }
 
+    nonisolated static func nextInspectionDate(
+        from inspections: [Inspection],
+        fallbackDate: Date,
+        intervalDays: Int
+    ) -> Date {
+        let latestInspectionDate = inspections.map(\.datum).max() ?? fallbackDate
+        return Calendar.current.date(byAdding: .day, value: intervalDays, to: latestInspectionDate) ?? latestInspectionDate
+    }
+
+    private func deleteClientSubtree(clientId: String) async throws {
+        let floorsSnapshot = try await floorsRef(clientId: clientId).getDocuments()
+        for floorDoc in floorsSnapshot.documents {
+            try await deleteFloorSubtree(clientId: clientId, floorId: floorDoc.documentID)
+        }
+    }
+
+    private func deleteFloorSubtree(clientId: String, floorId: String) async throws {
+        let trapsSnapshot = try await trapsRef(clientId: clientId, floorId: floorId).getDocuments()
+        for trapDoc in trapsSnapshot.documents {
+            try await deleteTrapSubtree(clientId: clientId, floorId: floorId, trapId: trapDoc.documentID)
+        }
+        try await floorsRef(clientId: clientId).document(floorId).delete()
+    }
+
+    private func deleteTrapSubtree(clientId: String, floorId: String, trapId: String) async throws {
+        let inspectionsSnapshot = try await inspectionsRef(clientId: clientId, floorId: floorId, trapId: trapId).getDocuments()
+        for inspectionDoc in inspectionsSnapshot.documents {
+            if let inspection = try? inspectionDoc.data(as: Inspection.self) {
+                await deleteInspectionAttachments(for: inspection)
+            }
+            try await inspectionDoc.reference.delete()
+        }
+        try await trapsRef(clientId: clientId, floorId: floorId).document(trapId).delete()
+    }
+
+    private func deleteInspectionAttachments(for inspection: Inspection) async {
+        for photoURL in inspection.fotoURLs {
+            await deleteStoredPhoto(at: photoURL)
+        }
+    }
+
+    private func deleteStoredPhoto(at urlString: String) async {
+        guard let url = URL(string: urlString) else { return }
+        if url.isFileURL {
+            try? FileManager.default.removeItem(at: url)
+            return
+        }
+
+        guard urlString.hasPrefix("gs://") || urlString.hasPrefix("https://") else { return }
+        do {
+            let reference = storage.reference(forURL: urlString)
+            try await reference.delete()
+        } catch {
+            // Ignore missing or already-deleted files during cleanup.
+        }
+    }
+
     // MARK: - Clients
     func fetchClients() async throws -> [Client] {
         try ensureAuthenticated()
@@ -254,6 +311,7 @@ class FirestoreService: ObservableObject {
     func deleteClient(_ client: Client) async throws {
         try ensureAuthenticated()
         guard let id = client.id else { return }
+        try await deleteClientSubtree(clientId: id)
         try await clientsRef().document(id).delete()
         await cache.invalidateClients(for: userId)
         await cache.invalidateClientSubtree(userId: userId, clientId: id)
@@ -284,19 +342,10 @@ class FirestoreService: ObservableObject {
         await cache.invalidateDerived(for: userId)
     }
 
-    func updateFloorPlanURL(clientId: String, floorId: String, url: String) async throws {
-        try ensureAuthenticated()
-        try await floorsRef(clientId: clientId).document(floorId).updateData([
-            "grundrissURL": url
-        ])
-        await cache.invalidateFloors(for: floorsCacheKey(clientId: clientId))
-        await cache.invalidateDerived(for: userId)
-    }
-
     func deleteFloor(_ floor: Floor, clientId: String) async throws {
         try ensureAuthenticated()
         guard let id = floor.id else { return }
-        try await floorsRef(clientId: clientId).document(id).delete()
+        try await deleteFloorSubtree(clientId: clientId, floorId: id)
         await cache.invalidateFloors(for: floorsCacheKey(clientId: clientId))
         await cache.invalidateTraps(for: trapsCacheKey(clientId: clientId, floorId: id))
         await cache.invalidateInspectionsWithPrefix(prefix: "\(userId)|\(clientId)|\(id)|")
@@ -330,7 +379,7 @@ class FirestoreService: ObservableObject {
     func deleteTrap(_ trap: Trap, clientId: String, floorId: String) async throws {
         try ensureAuthenticated()
         guard let id = trap.id else { return }
-        try await trapsRef(clientId: clientId, floorId: floorId).document(id).delete()
+        try await deleteTrapSubtree(clientId: clientId, floorId: floorId, trapId: id)
         await cache.invalidateTraps(for: trapsCacheKey(clientId: clientId, floorId: floorId))
         await cache.invalidateInspections(for: inspectionsCacheKey(clientId: clientId, floorId: floorId, trapId: id))
         await cache.invalidateDerived(for: userId)
@@ -395,11 +444,19 @@ class FirestoreService: ObservableObject {
     ) async throws {
         try ensureAuthenticated()
         guard let inspectionId = inspection.id else { return }
-        try await inspectionsRef(clientId: clientId, floorId: floorId, trapId: trapId).document(inspectionId).delete()
+        let cacheKey = inspectionsCacheKey(clientId: clientId, floorId: floorId, trapId: trapId)
 
-        let remaining = try await fetchInspections(clientId: clientId, floorId: floorId, trapId: trapId)
-        let latestInspectionDate = remaining.map(\.datum).max() ?? fallbackDate
-        let nextDate = Calendar.current.date(byAdding: .day, value: intervalDays, to: latestInspectionDate) ?? latestInspectionDate
+        try await inspectionsRef(clientId: clientId, floorId: floorId, trapId: trapId).document(inspectionId).delete()
+        await deleteInspectionAttachments(for: inspection)
+        await cache.invalidateInspections(for: cacheKey)
+
+        let remainingSnapshot = try await inspectionsRef(clientId: clientId, floorId: floorId, trapId: trapId)
+            .order(by: "datum", descending: true)
+            .getDocuments()
+        let remaining = remainingSnapshot.documents.compactMap { try? $0.data(as: Inspection.self) }
+        await cache.setInspections(remaining, for: cacheKey)
+
+        let nextDate = Self.nextInspectionDate(from: remaining, fallbackDate: fallbackDate, intervalDays: intervalDays)
         try await trapsRef(clientId: clientId, floorId: floorId).document(trapId).updateData([
             "naechstePruefung": Timestamp(date: nextDate)
         ])
@@ -709,17 +766,6 @@ class FirestoreService: ObservableObject {
         return sorted
     }
 
-    // MARK: - Grundriss Upload
-    func uploadGrundriss(imageData: Data, clientId: String, floorId: String) async throws -> String {
-        try ensureAuthenticated()
-        let fileName = "\(floorId)-\(Int(Date().timeIntervalSince1970)).jpg"
-        let ref = storage.reference().child("grundrisse/\(userId)/\(clientId)/\(fileName)")
-        let meta = StorageMetadata()
-        meta.contentType = "image/jpeg"
-        _ = try await ref.putDataAsync(imageData, metadata: meta)
-        return try await ref.downloadURL().absoluteString
-    }
-
     func uploadInspectionPhotos(photoData: [Data], clientId: String, floorId: String, trapId: String) async throws -> [String] {
         try ensureAuthenticated()
         guard !photoData.isEmpty else { return [] }
@@ -921,21 +967,7 @@ class FirestoreService: ObservableObject {
 
         let clientsSnapshot = try await clientsRef().getDocuments()
         for clientDoc in clientsSnapshot.documents {
-            let clientId = clientDoc.documentID
-            let floorsSnapshot = try await floorsRef(clientId: clientId).getDocuments()
-            for floorDoc in floorsSnapshot.documents {
-                let floorId = floorDoc.documentID
-                let trapsSnapshot = try await trapsRef(clientId: clientId, floorId: floorId).getDocuments()
-                for trapDoc in trapsSnapshot.documents {
-                    let trapId = trapDoc.documentID
-                    let inspectionsSnapshot = try await inspectionsRef(clientId: clientId, floorId: floorId, trapId: trapId).getDocuments()
-                    for inspectionDoc in inspectionsSnapshot.documents {
-                        try await inspectionDoc.reference.delete()
-                    }
-                    try await trapDoc.reference.delete()
-                }
-                try await floorDoc.reference.delete()
-            }
+            try await deleteClientSubtree(clientId: clientDoc.documentID)
             try await clientDoc.reference.delete()
         }
 
@@ -943,13 +975,6 @@ class FirestoreService: ObservableObject {
             try await db.collection("users").document(uid).delete()
         } catch {
             // Continue account deletion flow even if the profile document does not exist.
-        }
-
-        do {
-            let rootRef = storage.reference().child("grundrisse/\(uid)")
-            try await deleteStorageTree(at: rootRef)
-        } catch {
-            // Continue account deletion flow even if there are no files to delete.
         }
 
         do {

@@ -265,7 +265,7 @@ struct AddInspectionView: View {
                     Button(ipmLocalized(appLanguage, de: "Speichern", en: "Save")) { Task { await saveInspection() } }
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(isSaving ? IPMColors.brownMid : IPMColors.green)
-                    .disabled(isSaving || (didSave && existingInspection == nil))
+                    .disabled(isSaving || didSave)
                 }
             }
         }
@@ -350,14 +350,71 @@ struct AddInspectionView: View {
             )
             await onSave()
             didSave = true
-            if let photoWarning {
-                saveMessage = photoWarning
-            }
-            dismiss()
+            selectedPhotoItems = []
+            selectedPhotoData = []
+            await prepareSaveFeedback(for: inspection, photoWarning: photoWarning, reportPhotoData: uploadCandidates)
         } catch {
             saveMessage = error.localizedDescription
             didSave = false
         }
+    }
+
+    private func prepareSaveFeedback(
+        for inspection: Inspection,
+        photoWarning: String?,
+        reportPhotoData: [Data]
+    ) async {
+        var messages: [String] = []
+        if let photoWarning {
+            messages.append(photoWarning)
+        }
+
+        do {
+            if let reportURL = try await generateReportURL(for: inspection, photoData: reportPhotoData) {
+                generatedReportURL = reportURL
+                messages.append(
+                    ipmLocalized(
+                        appLanguage,
+                        de: "PDF-Bericht wurde automatisch erstellt.",
+                        en: "PDF report was created automatically."
+                    )
+                )
+            } else {
+                messages.append(
+                    ipmLocalized(
+                        appLanguage,
+                        de: "Kontrolle gespeichert. Bericht konnte nicht erstellt werden.",
+                        en: "Inspection saved. Report could not be created."
+                    )
+                )
+            }
+        } catch {
+            messages.append(
+                ipmLocalized(
+                    appLanguage,
+                    de: "Kontrolle gespeichert. Bericht konnte nicht erstellt werden.",
+                    en: "Inspection saved. Report could not be created."
+                )
+            )
+        }
+
+        saveMessage = messages.joined(separator: "\n")
+    }
+
+    private func generateReportURL(for inspection: Inspection, photoData: [Data]) async throws -> URL? {
+        guard let client = try await FirestoreService.shared.fetchClient(clientId: clientId) else {
+            return nil
+        }
+
+        let floor = try await FirestoreService.shared.fetchFloor(clientId: clientId, floorId: floorId)
+        return try await FirestoreService.shared.exportInspectionReportToPDF(
+            client: client,
+            floor: floor,
+            trap: trap,
+            inspection: inspection,
+            language: appLanguage,
+            photoData: photoData
+        )
     }
 }
 

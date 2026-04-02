@@ -34,12 +34,48 @@ struct Client: Identifiable, Codable, Sendable {
 struct Floor: Identifiable, Codable, Sendable {
     @DocumentID var id: String?
     var name: String
-    var grundrissURL: String?
+    var stockwerk: String?
+    var gebaeude: String?
+    var beschreibung: String?
+    var besuchsfrequenz: String?
+    var erreichbarkeit: RoomAccessibility?
     var createdAt: Date
 
-    init(name: String) {
+    init(
+        name: String,
+        stockwerk: String? = nil,
+        gebaeude: String? = nil,
+        beschreibung: String? = nil,
+        besuchsfrequenz: String? = nil,
+        erreichbarkeit: RoomAccessibility? = nil
+    ) {
         self.name = name
+        self.stockwerk = stockwerk
+        self.gebaeude = gebaeude
+        self.beschreibung = beschreibung
+        self.besuchsfrequenz = besuchsfrequenz
+        self.erreichbarkeit = erreichbarkeit
         self.createdAt = Date()
+    }
+}
+
+enum RoomAccessibility: String, Codable, CaseIterable, Sendable {
+    case lift
+    case treppe
+    case liftUndTreppe
+    case ebenerdig
+
+    func title(language: String) -> String {
+        switch self {
+        case .lift:
+            return language == "en" ? "Elevator" : "Lift"
+        case .treppe:
+            return language == "en" ? "Stairs" : "Treppe"
+        case .liftUndTreppe:
+            return language == "en" ? "Elevator & stairs" : "Lift und Treppe"
+        case .ebenerdig:
+            return language == "en" ? "Ground level" : "Ebenerdig"
+        }
     }
 }
 

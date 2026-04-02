@@ -8,7 +8,6 @@ private enum TrapSortMode: String, CaseIterable, Identifiable {
     case number
     case dueDate
     case status
-    case position
 
     var id: String { rawValue }
 
@@ -17,8 +16,13 @@ private enum TrapSortMode: String, CaseIterable, Identifiable {
         case .number: return ipmLocalized(language, de: "Nummer", en: "Number")
         case .dueDate: return ipmLocalized(language, de: "Prüftermin", en: "Due date")
         case .status: return ipmLocalized(language, de: "Status", en: "Status")
-        case .position: return ipmLocalized(language, de: "Position", en: "Position")
         }
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        isEmpty ? nil : self
     }
 }
 
@@ -27,17 +31,19 @@ struct FloorDetailView: View {
     @EnvironmentObject var subscription: SubscriptionManager
     @Environment(\.colorScheme) var scheme
     @AppStorage("appLanguage") private var appLanguage = "de"
-    let floor: Floor
     let clientId: String
+    @State private var currentFloor: Floor
     @State private var traps: [Trap] = []
     @State private var showAddTrap = false
+    @State private var showEditFloor = false
     @State private var showUpgradeAlert = false
     @State private var upgradeMessage = ""
-    @State private var selectedTrap: Trap?
-    @State private var isPositionEditMode = false
-    @State private var positionOverrides: [String: CGPoint] = [:]
-    @State private var isAutoArranging = false
     @AppStorage("trapSortMode") private var trapSortModeRaw = TrapSortMode.number.rawValue
+
+    init(floor: Floor, clientId: String) {
+        self.clientId = clientId
+        _currentFloor = State(initialValue: floor)
+    }
 
     private var trapSortMode: TrapSortMode {
         TrapSortMode(rawValue: trapSortModeRaw) ?? .number
@@ -51,13 +57,6 @@ struct FloorDetailView: View {
             return traps.sorted { $0.naechstePruefung < $1.naechstePruefung }
         case .status:
             return traps.sorted { trapPriority($0) < trapPriority($1) }
-        case .position:
-            return traps.sorted {
-                if abs($0.positionY - $1.positionY) < 0.05 {
-                    return $0.positionX < $1.positionX
-                }
-                return $0.positionY < $1.positionY
-            }
         }
     }
 
@@ -65,142 +64,22 @@ struct FloorDetailView: View {
         ZStack {
             AdaptiveColor.background(scheme).ignoresSafeArea()
             VStack(spacing: 0) {
-
-                // Grundriss
-                ZStack {
-                    AdaptiveColor.card(scheme)
-                    GeometryReader { geo in
-                        ZStack {
-                            if let urlStr = floor.grundrissURL, let url = URL(string: urlStr) {
-                                AsyncImage(url: url) { phase in
-                                    switch phase {
-                                    case .success(let img): img.resizable().scaledToFit()
-                                    case .failure: grundrissPlaceholder
-                                    default: ProgressView().tint(IPMColors.green)
-                                    }
-                                }
-                            } else {
-                                grundrissPlaceholder
-                            }
-
-                            // Tappable Pins / Editierbare Pins
-                            ForEach(displayedTraps) { trap in
-                                let key = trap.id ?? trap.nummer
-                                let normalized = positionOverrides[key] ?? CGPoint(x: trap.positionX, y: trap.positionY)
-                                let pinX = max(15, min(geo.size.width - 15, normalized.x * geo.size.width))
-                                let pinY = max(15, min(geo.size.height - 15, normalized.y * geo.size.height))
-
-                                if isPositionEditMode {
-                                    TrapPin(trap: trap, compactNumbers: shouldCompactTrapNumbers)
-                                        .scaleEffect(1.05)
-                                        .position(x: pinX, y: pinY)
-                                        .highPriorityGesture(
-                                            DragGesture(minimumDistance: 0)
-                                                .onChanged { value in
-                                                    let normalizedX = min(1, max(0, value.location.x / max(geo.size.width, 1)))
-                                                    let normalizedY = min(1, max(0, value.location.y / max(geo.size.height, 1)))
-                                                    positionOverrides[key] = CGPoint(x: normalizedX, y: normalizedY)
-                                                }
-                                                .onEnded { value in
-                                                    let normalizedX = min(1, max(0, value.location.x / max(geo.size.width, 1)))
-                                                    let normalizedY = min(1, max(0, value.location.y / max(geo.size.height, 1)))
-                                                    positionOverrides[key] = CGPoint(x: normalizedX, y: normalizedY)
-                                                    Task {
-                                                        guard let trapId = trap.id else { return }
-                                                        try? await FirestoreService.shared.updateTrapPosition(
-                                                            trapId: trapId,
-                                                            clientId: clientId,
-                                                            floorId: floor.id ?? "",
-                                                            positionX: normalizedX,
-                                                            positionY: normalizedY
-                                                        )
-                                                        updateLocalTrapPosition(trapId: trapId, x: normalizedX, y: normalizedY)
-                                                    }
-                                                }
-                                        )
-                                } else {
-                                    Button { selectedTrap = trap } label: {
-                                        TrapPin(trap: trap, compactNumbers: shouldCompactTrapNumbers)
-                                    }
-                                    .position(x: pinX, y: pinY)
-                                }
-                            }
-                        }
-                    }
-                }
-                .frame(height: 240)
-                .overlay(alignment: .bottomTrailing) {
-                    if !displayedTraps.isEmpty {
-                        Text("\(displayedTraps.count) \(ipmLocalized(appLanguage, de: "Fallen", en: "traps"))")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(IPMColors.brownMid)
-                            .padding(.horizontal, 10).padding(.vertical, 5)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Capsule())
-                            .padding(10)
-                    }
-                }
-                .overlay(alignment: .topLeading) {
-                    if isPositionEditMode {
-                        HStack(spacing: 6) {
-                            Image(systemName: "hand.draw.fill")
-                                .font(.system(size: 11, weight: .semibold))
-                            Text(ipmLocalized(appLanguage, de: "Fallen verschieben", en: "Move traps"))
-                                .font(.system(size: 11, weight: .semibold))
-                        }
-                        .foregroundStyle(IPMColors.greenDark)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Capsule())
-                        .padding(10)
-                    }
-                }
-                .overlay(alignment: .topTrailing) {
-                    if isPositionEditMode {
-                        Button {
-                            Task { await autoArrangeAllTraps() }
-                        } label: {
-                            HStack(spacing: 6) {
-                                if isAutoArranging {
-                                    ProgressView().tint(IPMColors.greenDark)
-                                } else {
-                                    Image(systemName: "square.grid.3x3.topleft.filled")
-                                        .font(.system(size: 11, weight: .semibold))
-                                }
-                                Text(ipmLocalized(appLanguage, de: "Auto anordnen", en: "Auto arrange"))
-                                    .font(.system(size: 11, weight: .semibold))
-                            }
-                            .foregroundStyle(IPMColors.greenDark)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Capsule())
-                        }
-                        .disabled(isAutoArranging || displayedTraps.isEmpty)
-                        .padding(10)
-                    }
-                }
+                roomProfileCard
 
                 // Fallen Liste
                 List {
                     Section {
                         if displayedTraps.isEmpty {
-                            HStack {
-                                Spacer()
-                                VStack(spacing: 6) {
-                                    Image(systemName: "square.grid.2x2")
-                                        .font(.title3).foregroundStyle(IPMColors.brownMid.opacity(0.3))
-                                    Text(ipmLocalized(appLanguage, de: "Noch keine Fallen", en: "No traps yet")).font(.system(size: 13)).foregroundStyle(IPMColors.brownMid)
-                                }
-                                Spacer()
-                            }
-                            .padding(.vertical, 12)
+                            IPMEmptyState(
+                                icon: "square.grid.2x2",
+                                title: ipmLocalized(appLanguage, de: "Noch keine Fallen", en: "No traps yet"),
+                                subtitle: ipmLocalized(appLanguage, de: "Lege die erste Falle für diesen Raum an.", en: "Create the first trap for this room.")
+                            )
                             .listRowBackground(AdaptiveColor.card(scheme))
                         }
 
                         ForEach(displayedTraps) { trap in
-                            NavigationLink(destination: TrapDetailView(trap: trap, clientId: clientId, floorId: floor.id ?? "")) {
+                            NavigationLink(destination: TrapDetailView(trap: trap, clientId: clientId, floorId: currentFloor.id ?? "")) {
                                 TrapListRow(trap: trap)
                             }
                             .listRowBackground(AdaptiveColor.card(scheme))
@@ -210,7 +89,7 @@ struct FloorDetailView: View {
                             Task {
                                 for i in indexSet {
                                     let trap = displayedTraps[i]
-                                    try? await FirestoreService.shared.deleteTrap(trap, clientId: clientId, floorId: floor.id ?? "")
+                                    try? await FirestoreService.shared.deleteTrap(trap, clientId: clientId, floorId: currentFloor.id ?? "")
                                 }
                                 await loadTraps()
                             }
@@ -236,7 +115,7 @@ struct FloorDetailView: View {
                 .background(AdaptiveColor.background(scheme))
             }
         }
-        .navigationTitle(floor.name)
+        .navigationTitle(currentFloor.name)
         .ipmNavigationBarTitleDisplayModeInline()
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -254,144 +133,110 @@ struct FloorDetailView: View {
 
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    isPositionEditMode.toggle()
-                    if !isPositionEditMode {
-                        positionOverrides.removeAll()
-                    }
+                    showEditFloor = true
                 } label: {
-                    Label(
-                        ipmLocalized(appLanguage, de: isPositionEditMode ? "Fertig" : "Plan bearbeiten", en: isPositionEditMode ? "Done" : "Edit plan"),
-                        systemImage: isPositionEditMode ? "checkmark.circle.fill" : "pencil.and.scribble"
-                    )
+                    Label(ipmLocalized(appLanguage, de: "Raum bearbeiten", en: "Edit room"), systemImage: "slider.horizontal.3")
                 }
                 .tint(IPMColors.green)
             }
         }
         .sheet(isPresented: $showAddTrap) {
-            AddTrapView(clientId: clientId, floorId: floor.id ?? "", existingTraps: traps) { await loadTraps() }
+            AddTrapView(clientId: clientId, floorId: currentFloor.id ?? "", existingTraps: traps) { await loadTraps() }
+        }
+        .sheet(isPresented: $showEditFloor) {
+            EditFloorView(floor: currentFloor, clientId: clientId) { updatedFloor in
+                currentFloor = updatedFloor
+            }
         }
         .alert(ipmLocalized(appLanguage, de: "Limit erreicht", en: "Limit reached"), isPresented: $showUpgradeAlert) {
             Button(ipmLocalized(appLanguage, de: "OK", en: "OK"), role: .cancel) {}
         } message: {
             Text(upgradeMessage)
         }
-        // Pin-Tap öffnet TrapDetail als Sheet
-        .sheet(item: $selectedTrap) { trap in
-            NavigationStack {
-                TrapDetailView(trap: trap, clientId: clientId, floorId: floor.id ?? "")
-                    .toolbar {
-                        ToolbarItem(placement: .automatic) {
-                            Button(ipmLocalized(appLanguage, de: "Fertig", en: "Done")) { selectedTrap = nil }
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(IPMColors.green)
-                        }
-                    }
-            }
-        }
         .task { await loadTraps() }
         .refreshable { await loadTraps() }
     }
 
-    private var grundrissPlaceholder: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "map").font(.system(size: 32)).foregroundStyle(IPMColors.brownMid.opacity(0.3))
-            Text(ipmLocalized(appLanguage, de: "Kein Grundriss", en: "No floor plan")).font(.system(size: 12)).foregroundStyle(IPMColors.brownMid.opacity(0.4))
+    private var roomProfileCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(IPMColors.green.opacity(0.12))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: "square.split.2x1")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(IPMColors.green)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(currentFloor.name)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(AdaptiveColor.textPrimary(scheme))
+
+                    if let descriptor = [currentFloor.gebaeude, currentFloor.stockwerk]
+                        .compactMap({ $0?.trimmingCharacters(in: .whitespacesAndNewlines) })
+                        .filter({ !$0.isEmpty })
+                        .joined(separator: " · ")
+                        .nilIfEmpty {
+                        Text(descriptor)
+                            .font(.system(size: 13))
+                            .foregroundStyle(IPMColors.brownMid)
+                    }
+                }
+
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("\(displayedTraps.count)")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(IPMColors.greenDark)
+                    Text(ipmLocalized(appLanguage, de: "Fallen", en: "Traps"))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(IPMColors.brownMid)
+                }
+            }
+
+            HStack(spacing: 10) {
+                if let frequency = currentFloor.besuchsfrequenz?.trimmingCharacters(in: .whitespacesAndNewlines), !frequency.isEmpty {
+                    roomMetaChip(icon: "calendar", text: frequency)
+                }
+                if let accessibility = currentFloor.erreichbarkeit {
+                    roomMetaChip(icon: "figure.walk", text: accessibility.title(language: appLanguage))
+                }
+            }
+
+            if let notes = currentFloor.beschreibung?.trimmingCharacters(in: .whitespacesAndNewlines), !notes.isEmpty {
+                Text(notes)
+                    .font(.system(size: 13))
+                    .foregroundStyle(AdaptiveColor.textPrimary(scheme))
+                    .padding(.top, 2)
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(AdaptiveColor.card(scheme))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
 
-    private var shouldCompactTrapNumbers: Bool {
-        displayedTraps.count >= 8
+    private func roomMetaChip(icon: String, text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .semibold))
+            Text(text)
+                .font(.system(size: 11, weight: .medium))
+        }
+        .foregroundStyle(IPMColors.greenDark)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(IPMColors.green.opacity(0.10))
+        .clipShape(Capsule())
     }
 
     private func loadTraps() async {
-        traps = (try? await FirestoreService.shared.fetchTraps(clientId: clientId, floorId: floor.id ?? "")) ?? []
-        positionOverrides.removeAll()
-    }
-
-    private func autoArrangeAllTraps() async {
-        guard !traps.isEmpty else { return }
-        isAutoArranging = true
-        defer { isAutoArranging = false }
-
-        let sorted = traps.enumerated().sorted {
-            $0.element.nummer.localizedStandardCompare($1.element.nummer) == .orderedAscending
-        }
-        let positions = makeAutoLayoutPositions(count: sorted.count)
-
-        for (slot, entry) in sorted.enumerated() {
-            let idx = entry.offset
-            let trap = entry.element
-            let point = positions[slot]
-            let key = trap.id ?? trap.nummer
-            positionOverrides[key] = point
-            if let trapId = trap.id {
-                try? await FirestoreService.shared.updateTrapPosition(
-                    trapId: trapId,
-                    clientId: clientId,
-                    floorId: floor.id ?? "",
-                    positionX: point.x,
-                    positionY: point.y
-                )
-            }
-            traps[idx].positionX = point.x
-            traps[idx].positionY = point.y
-        }
-    }
-
-    private func makeAutoLayoutPositions(count: Int) -> [CGPoint] {
-        guard count > 0 else { return [] }
-        let columns = min(5, max(3, Int(ceil(sqrt(Double(count))))))
-        let rows = Int(ceil(Double(count) / Double(columns)))
-        let left: Double = 0.10
-        let right: Double = 0.90
-        let top: Double = 0.12
-        let bottom: Double = 0.88
-
-        var points: [CGPoint] = []
-        points.reserveCapacity(count)
-
-        for i in 0..<count {
-            let row = i / columns
-            let col = i % columns
-            let xStep = columns > 1 ? (right - left) / Double(columns - 1) : 0
-            let yStep = rows > 1 ? (bottom - top) / Double(rows - 1) : 0
-            let x = min(right, max(left, left + Double(col) * xStep))
-            let y = min(bottom, max(top, top + Double(row) * yStep))
-            points.append(CGPoint(x: x, y: y))
-        }
-        applySeparation(&points, minX: 0.12, minY: 0.14, bounds: (left, right, top, bottom))
-        return points
-    }
-
-    private func applySeparation(_ points: inout [CGPoint], minX: Double, minY: Double, bounds: (Double, Double, Double, Double)) {
-        guard points.count > 1 else { return }
-        let iterations = 12
-        for _ in 0..<iterations {
-            var changed = false
-            for i in 0..<points.count {
-                for j in (i + 1)..<points.count {
-                    let dx = points[j].x - points[i].x
-                    let dy = points[j].y - points[i].y
-                    if abs(dx) < minX && abs(dy) < minY {
-                        let pushX = (minX - abs(dx)) * 0.5 * (dx >= 0 ? 1 : -1)
-                        let pushY = (minY - abs(dy)) * 0.5 * (dy >= 0 ? 1 : -1)
-                        points[i].x = min(bounds.1, max(bounds.0, points[i].x - pushX))
-                        points[j].x = min(bounds.1, max(bounds.0, points[j].x + pushX))
-                        points[i].y = min(bounds.3, max(bounds.2, points[i].y - pushY))
-                        points[j].y = min(bounds.3, max(bounds.2, points[j].y + pushY))
-                        changed = true
-                    }
-                }
-            }
-            if !changed { break }
-        }
-    }
-
-    private func updateLocalTrapPosition(trapId: String, x: Double, y: Double) {
-        guard let index = traps.firstIndex(where: { $0.id == trapId }) else { return }
-        traps[index].positionX = x
-        traps[index].positionY = y
+        traps = (try? await FirestoreService.shared.fetchTraps(clientId: clientId, floorId: currentFloor.id ?? "")) ?? []
     }
 
     private func trapPriority(_ trap: Trap) -> Int {
@@ -399,6 +244,137 @@ struct FloorDetailView: View {
         case .ueberfaellig: return 0
         case .bald: return 1
         case .ok: return 2
+        }
+    }
+}
+
+private struct EditFloorView: View {
+    let floor: Floor
+    let clientId: String
+    let onSave: (Floor) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
+    @AppStorage("appLanguage") private var appLanguage = "de"
+
+    @State private var name: String
+    @State private var stockwerk: String
+    @State private var gebaeude: String
+    @State private var beschreibung: String
+    @State private var besuchsfrequenz: String
+    @State private var erreichbarkeit: RoomAccessibility
+    @State private var isSaving = false
+    @State private var saveError: String?
+
+    init(floor: Floor, clientId: String, onSave: @escaping (Floor) -> Void) {
+        self.floor = floor
+        self.clientId = clientId
+        self.onSave = onSave
+        _name = State(initialValue: floor.name)
+        _stockwerk = State(initialValue: floor.stockwerk ?? "")
+        _gebaeude = State(initialValue: floor.gebaeude ?? "")
+        _beschreibung = State(initialValue: floor.beschreibung ?? "")
+        _besuchsfrequenz = State(initialValue: floor.besuchsfrequenz ?? "")
+        _erreichbarkeit = State(initialValue: floor.erreichbarkeit ?? .treppe)
+    }
+
+    private var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSaving
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AdaptiveColor.background(scheme).ignoresSafeArea()
+                List {
+                    Section {
+                        IPMFormField(label: ipmLocalized(appLanguage, de: "Raumname", en: "Room name"), text: $name, icon: "map")
+                        IPMFormField(label: ipmLocalized(appLanguage, de: "Stockwerk", en: "Floor level"), text: $stockwerk, icon: "stairs")
+                        IPMFormField(label: ipmLocalized(appLanguage, de: "Gebäude", en: "Building"), text: $gebaeude, icon: "building.2")
+                        IPMFormField(label: ipmLocalized(appLanguage, de: "Besuchsfrequenz", en: "Visit frequency"), text: $besuchsfrequenz, icon: "calendar")
+                    } header: {
+                        SectionLabel(ipmLocalized(appLanguage, de: "Raumdaten", en: "Room details"))
+                    }
+                    .listRowBackground(AdaptiveColor.card(scheme))
+
+                    Section {
+                        Picker(ipmLocalized(appLanguage, de: "Erreichbarkeit", en: "Accessibility"), selection: $erreichbarkeit) {
+                            ForEach(RoomAccessibility.allCases, id: \.self) { option in
+                                Text(option.title(language: appLanguage)).tag(option)
+                            }
+                        }
+                        .tint(IPMColors.green)
+                    } header: {
+                        SectionLabel(ipmLocalized(appLanguage, de: "Zugang", en: "Access"))
+                    }
+                    .listRowBackground(AdaptiveColor.card(scheme))
+
+                    Section {
+                        TextField(ipmLocalized(appLanguage, de: "Beschreibung, Besonderheiten, Risiken...", en: "Description, special notes, risks..."), text: $beschreibung, axis: .vertical)
+                            .lineLimit(3...6)
+                            .font(.system(size: 14))
+                            .foregroundStyle(AdaptiveColor.textPrimary(scheme))
+                    } header: {
+                        SectionLabel(ipmLocalized(appLanguage, de: "Beschreibung", en: "Description"))
+                    }
+                    .listRowBackground(AdaptiveColor.card(scheme))
+
+                    if let saveError {
+                        Section {
+                            Text(saveError)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(IPMColors.critical)
+                        }
+                        .listRowBackground(AdaptiveColor.card(scheme))
+                    }
+                }
+                .scrollContentBackground(.hidden)
+            }
+            .navigationTitle(ipmLocalized(appLanguage, de: "Raum bearbeiten", en: "Edit room"))
+            .ipmNavigationBarTitleDisplayModeInline()
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(ipmLocalized(appLanguage, de: "Abbrechen", en: "Cancel")) {
+                        dismiss()
+                    }
+                    .foregroundStyle(IPMColors.brownMid)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(ipmLocalized(appLanguage, de: "Speichern", en: "Save")) {
+                        Task { await saveFloor() }
+                    }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(canSave ? IPMColors.green : IPMColors.brownMid)
+                    .disabled(!canSave)
+                }
+            }
+        }
+    }
+
+    private func saveFloor() async {
+        isSaving = true
+        defer { isSaving = false }
+
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            saveError = ipmLocalized(appLanguage, de: "Der Raumname ist erforderlich.", en: "Room name is required.")
+            return
+        }
+
+        var updatedFloor = floor
+        updatedFloor.name = trimmedName
+        updatedFloor.stockwerk = stockwerk.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        updatedFloor.gebaeude = gebaeude.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        updatedFloor.beschreibung = beschreibung.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        updatedFloor.besuchsfrequenz = besuchsfrequenz.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        updatedFloor.erreichbarkeit = erreichbarkeit
+
+        do {
+            try await FirestoreService.shared.saveFloor(updatedFloor, clientId: clientId)
+            onSave(updatedFloor)
+            dismiss()
+        } catch {
+            saveError = error.localizedDescription
         }
     }
 }
@@ -1224,15 +1200,6 @@ struct AddTrapView: View {
                     } header: { SectionLabel(ipmLocalized(appLanguage, de: "Prüfintervall", en: "Inspection interval")) }
                     .listRowBackground(AdaptiveColor.card(scheme))
 
-                    Section {
-                        HStack(spacing: 6) {
-                            Image(systemName: "info.circle").foregroundStyle(IPMColors.brownMid).font(.system(size: 12))
-                            Text(ipmLocalized(appLanguage, de: "Die Position auf dem Grundriss wird auf Mitte gesetzt. Du kannst sie später anpassen.", en: "The trap starts centered on the floor plan. You can adjust it later."))
-                                .font(.system(size: 12)).foregroundStyle(IPMColors.brownMid)
-                        }
-                    }
-                    .listRowBackground(AdaptiveColor.cardSecondary(scheme))
-
                     if let limitError {
                         Section {
                             Text(limitError)
@@ -1258,13 +1225,10 @@ struct AddTrapView: View {
                                 return
                             }
                             isSaving = true
-                            let suggested = suggestedPosition()
                             try? await FirestoreService.shared.saveTrap(
                                 Trap(
                                     nummer: nummer,
                                     typ: typ,
-                                    positionX: suggested.x,
-                                    positionY: suggested.y,
                                     pruefIntervallTage: intervallWochen * 7
                                 ),
                                 clientId: clientId, floorId: floorId
@@ -1281,51 +1245,4 @@ struct AddTrapView: View {
         }
     }
 
-    private func suggestedPosition() -> CGPoint {
-        let columns = 4
-        let rows = 4
-        let gridCount = columns * rows
-        var occupied: Set<Int> = []
-
-        for trap in existingTraps {
-            occupied.insert(nearestGridIndex(x: trap.positionX, y: trap.positionY, columns: columns, rows: rows))
-        }
-
-        if let freeIndex = (0..<gridCount).first(where: { !occupied.contains($0) }) {
-            return gridPoint(for: freeIndex, columns: columns, rows: rows)
-        }
-
-        // Falls das Raster voll ist: leichte Spiral-Annäherung um die Mitte.
-        let angle = Double(existingTraps.count) * .pi / 4
-        let radius = min(0.32, 0.08 + Double(existingTraps.count % 10) * 0.02)
-        let x = min(0.9, max(0.1, 0.5 + cos(angle) * radius))
-        let y = min(0.9, max(0.1, 0.5 + sin(angle) * radius))
-        return CGPoint(x: x, y: y)
-    }
-
-    private func gridPoint(for index: Int, columns: Int, rows: Int) -> CGPoint {
-        let col = index % columns
-        let row = index / columns
-        let x = 0.12 + (Double(col) * (0.76 / Double(max(columns - 1, 1))))
-        let y = 0.14 + (Double(row) * (0.72 / Double(max(rows - 1, 1))))
-        return CGPoint(x: x, y: y)
-    }
-
-    private func nearestGridIndex(x: Double, y: Double, columns: Int, rows: Int) -> Int {
-        var bestIndex = 0
-        var bestDistance = Double.greatestFiniteMagnitude
-
-        for idx in 0..<(columns * rows) {
-            let point = gridPoint(for: idx, columns: columns, rows: rows)
-            let dx = point.x - x
-            let dy = point.y - y
-            let distance = (dx * dx) + (dy * dy)
-            if distance < bestDistance {
-                bestDistance = distance
-                bestIndex = idx
-            }
-        }
-
-        return bestIndex
-    }
 }

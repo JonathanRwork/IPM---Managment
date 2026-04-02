@@ -1,32 +1,53 @@
-//___FILEHEADER___
-
 import XCTest
+@testable import IPM___Managment
 
-final class ___FILEBASENAMEASIDENTIFIER___: XCTestCase {
+final class IPMManagementTests: XCTestCase {
+    func testNextInspectionDateUsesLatestRemainingInspection() {
+        let calendar = Calendar(identifier: .gregorian)
+        let fallbackDate = calendar.date(from: DateComponents(year: 2025, month: 1, day: 1))!
+        let olderInspection = Inspection(
+            datum: calendar.date(from: DateComponents(year: 2025, month: 1, day: 3))!,
+            temperatur: nil,
+            luftfeuchtigkeit: nil,
+            notizen: ""
+        )
+        let latestInspection = Inspection(
+            datum: calendar.date(from: DateComponents(year: 2025, month: 1, day: 10))!,
+            temperatur: nil,
+            luftfeuchtigkeit: nil,
+            notizen: ""
+        )
 
-    override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
+        let result = FirestoreService.nextInspectionDate(
+            from: [olderInspection, latestInspection],
+            fallbackDate: fallbackDate,
+            intervalDays: 14
+        )
+
+        XCTAssertEqual(
+            result,
+            calendar.date(from: DateComponents(year: 2025, month: 1, day: 24))
+        )
     }
 
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+    func testNextInspectionDateFallsBackToInstallDateWhenNoInspectionRemains() {
+        let calendar = Calendar(identifier: .gregorian)
+        let fallbackDate = calendar.date(from: DateComponents(year: 2025, month: 2, day: 5))!
+
+        let result = FirestoreService.nextInspectionDate(
+            from: [],
+            fallbackDate: fallbackDate,
+            intervalDays: 28
+        )
+
+        XCTAssertEqual(
+            result,
+            calendar.date(from: DateComponents(year: 2025, month: 3, day: 5))
+        )
     }
 
-    func testExample() throws {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // Any test you write for XCTest can be annotated as throws and async.
-        // Mark your test throws to produce an unexpected failure when your test encounters an uncaught error.
-        // Mark your test async to allow awaiting for asynchronous code to complete. Check the results with assertions afterwards.
-        // XCTest Documentation
-        // https://developer.apple.com/documentation/xctest
+    func testTrapInspectionIntervalRoundsToWholeWeeks() {
+        let trap = Trap(nummer: "A-12", typ: .gTrap, pruefIntervallTage: 56)
+        XCTAssertEqual(trap.pruefIntervallWochen, 8)
     }
-
-    func testPerformanceExample() throws {
-        // This is an example of a performance test case.
-        measure {
-            // Put the code you want to measure the time of here.
-        }
-    }
-
 }
