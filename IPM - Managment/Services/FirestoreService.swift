@@ -38,10 +38,17 @@ struct TrapCatalogItem: Identifiable, Sendable {
     let trap: Trap
 }
 
+struct DashboardFindingCount: Identifiable, Hashable, Sendable {
+    var id: String { name }
+    let name: String
+    let count: Int
+}
+
 struct DashboardRoomSummary: Identifiable, Sendable {
-    var id: String { "\(clientId)_\(floor.id ?? floor.name)" }
+    var id: String { "\(clientId)_\(floorId)" }
     let clientId: String
     let clientName: String
+    let floorId: String
     let floor: Floor
     let totalTrapCount: Int
     let overdueCount: Int
@@ -62,12 +69,48 @@ struct DashboardRoomSummary: Identifiable, Sendable {
     let averageHumidity: Double?
     let humidityDelta: Double?
     let humiditySeries: [Double]
+    let topFindings: [DashboardFindingCount]
+    let insectCounts: [String: Int]
+}
+
+struct DashboardTrapSummary: Identifiable, Sendable {
+    var id: String { trapId }
+    let clientId: String
+    let clientName: String
+    let floorId: String
+    let floorName: String
+    let trapId: String
+    let trap: Trap
+    let inspectionCount: Int
+    let latestFindings: Int
+    let averageFindings: Double
+    let findingsDelta: Double?
+    let latestTemperature: Double?
+    let latestHumidity: Double?
+    let topFindings: [DashboardFindingCount]
+    let insectCounts: [String: Int]
+    let roomKey: String
+    let roomLabel: String
+}
+
+struct DashboardInsectSummary: Identifiable, Sendable {
+    var id: String { name }
+    let name: String
+    let totalCount: Int
+    let roomCount: Int
+    let trapCount: Int
+    let topRoomName: String?
+    let topRoomCount: Int
+    let topTrapName: String?
+    let topTrapCount: Int
 }
 
 struct DashboardSnapshot: Sendable {
     let clients: [Client]
     let trapItems: [DueTrapItem]
     let roomSummaries: [DashboardRoomSummary]
+    let trapSummaries: [DashboardTrapSummary]
+    let insectSummaries: [DashboardInsectSummary]
 }
 
 actor FirestoreCache {
@@ -226,6 +269,59 @@ class FirestoreService: ObservableObject {
     nonisolated private func delta(_ values: [Double]) -> Double? {
         guard values.count >= 2 else { return nil }
         return values[values.count - 1] - values[values.count - 2]
+    }
+
+    nonisolated private func buildInsectSummaries(from trapSummaries: [DashboardTrapSummary]) -> [DashboardInsectSummary] {
+        struct Accumulator {
+            var totalCount = 0
+            var roomCounts: [String: Int] = [:]
+            var trapCounts: [String: Int] = [:]
+            var roomIds: Set<String> = []
+            var trapIds: Set<String> = []
+        }
+
+        var grouped: [String: Accumulator] = [:]
+        for trapSummary in trapSummaries {
+            for (name, count) in trapSummary.insectCounts where count > 0 {
+                grouped[name, default: Accumulator()].totalCount += count
+                grouped[name, default: Accumulator()].roomCounts[trapSummary.roomLabel, default: 0] += count
+                grouped[name, default: Accumulator()].trapCounts["\(trapSummary.floorName) · \(trapSummary.trap.nummer)", default: 0] += count
+                grouped[name, default: Accumulator()].roomIds.insert(trapSummary.roomKey)
+                grouped[name, default: Accumulator()].trapIds.insert(trapSummary.trapId)
+            }
+        }
+
+        return grouped.map { name, accumulator in
+            let topRoom = accumulator.roomCounts.max { lhs, rhs in
+                if lhs.value == rhs.value {
+                    return lhs.key.localizedStandardCompare(rhs.key) == .orderedDescending
+                }
+                return lhs.value < rhs.value
+            }
+            let topTrap = accumulator.trapCounts.max { lhs, rhs in
+                if lhs.value == rhs.value {
+                    return lhs.key.localizedStandardCompare(rhs.key) == .orderedDescending
+                }
+                return lhs.value < rhs.value
+            }
+
+            return DashboardInsectSummary(
+                name: name,
+                totalCount: accumulator.totalCount,
+                roomCount: accumulator.roomIds.count,
+                trapCount: accumulator.trapIds.count,
+                topRoomName: topRoom?.key,
+                topRoomCount: topRoom?.value ?? 0,
+                topTrapName: topTrap?.key,
+                topTrapCount: topTrap?.value ?? 0
+            )
+        }
+        .sorted {
+            if $0.totalCount == $1.totalCount {
+                return $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }
+            return $0.totalCount > $1.totalCount
+        }
     }
 
     nonisolated static func nextInspectionDate(
@@ -479,7 +575,7 @@ class FirestoreService: ObservableObject {
         let weekLimit = Calendar.current.date(byAdding: .day, value: 7, to: now) ?? now
         let monthLimit = Calendar.current.date(byAdding: .day, value: 30, to: now) ?? now
 
-        let aggregated = try await withThrowingTaskGroup(of: ([DueTrapItem], [DashboardRoomSummary]).self) { group in
+        let aggregated = try await withThrowingTaskGroup(of: ([DueTrapItem], [DashboardRoomSummary], [DashboardTrapSummary]).self) { group in
             for entry in clientSnapshots {
                 group.addTask {
                     let floors = try await self.fetchFloors(clientId: entry.id)
@@ -491,6 +587,7 @@ class FirestoreService: ObservableObject {
                     }
                     var clientTrapItems: [DueTrapItem] = []
                     var clientRooms: [DashboardRoomSummary] = []
+                    var clientTrapSummaries: [DashboardTrapSummary] = []
 
                     for floorSnapshot in floorSnapshots {
                         let floorId = floorSnapshot.id
@@ -502,23 +599,27 @@ class FirestoreService: ObservableObject {
                                 return (id: trapId, trap: trap)
                             }
                         }
-                        let inspectionsByTrap = try await withThrowingTaskGroup(of: [Inspection].self) { inspectionGroup in
+                        let inspectionsByTrap = try await withThrowingTaskGroup(of: (String, [Inspection]).self) { inspectionGroup in
                             for trapSnapshot in trapSnapshots {
                                 inspectionGroup.addTask {
-                                    try await self.fetchInspections(
-                                        clientId: entry.id,
-                                        floorId: floorId,
-                                        trapId: trapSnapshot.id
+                                    (
+                                        trapSnapshot.id,
+                                        try await self.fetchInspections(
+                                            clientId: entry.id,
+                                            floorId: floorId,
+                                            trapId: trapSnapshot.id
+                                        )
                                     )
                                 }
                             }
 
-                            var collected: [Inspection] = []
-                            for try await inspections in inspectionGroup {
-                                collected += inspections
+                            var collected: [(trapId: String, inspections: [Inspection])] = []
+                            for try await result in inspectionGroup {
+                                collected.append((trapId: result.0, inspections: result.1))
                             }
                             return collected
                         }
+                        let inspectionLookup = Dictionary(uniqueKeysWithValues: inspectionsByTrap)
                         let trapItems = traps.map {
                             DueTrapItem(
                                 clientName: entry.client.name,
@@ -526,6 +627,57 @@ class FirestoreService: ObservableObject {
                                 clientId: entry.id,
                                 floorId: floorId,
                                 trap: $0
+                            )
+                        }
+
+                        var orderedInspectionsByRoom: [Inspection] = []
+                        var roomInsectCounts: [String: Int] = [:]
+
+                        for trapSnapshot in trapSnapshots {
+                            let orderedInspections = (inspectionLookup[trapSnapshot.id] ?? [])
+                                .sorted { $0.datum < $1.datum }
+                            orderedInspectionsByRoom += orderedInspections
+
+                            let findingsSeries = orderedInspections.suffix(8).map { inspection in
+                                Double(inspection.befunde.values.reduce(0, +))
+                            }
+                            let temperatureSeries = orderedInspections.compactMap(\.temperatur).suffix(8)
+                            let humiditySeries = orderedInspections.compactMap(\.luftfeuchtigkeit).suffix(8)
+                            let insectCounts = orderedInspections.reduce(into: [String: Int]()) { partialResult, inspection in
+                                for (name, count) in inspection.befunde where count > 0 {
+                                    partialResult[name, default: 0] += count
+                                    roomInsectCounts[name, default: 0] += count
+                                }
+                            }
+                            let topFindings = insectCounts
+                                .sorted {
+                                    if $0.value == $1.value {
+                                        return $0.key.localizedStandardCompare($1.key) == .orderedAscending
+                                    }
+                                    return $0.value > $1.value
+                                }
+                                .prefix(3)
+                                .map { DashboardFindingCount(name: $0.key, count: $0.value) }
+
+                            clientTrapSummaries.append(
+                                DashboardTrapSummary(
+                                    clientId: entry.id,
+                                    clientName: entry.client.name,
+                                    floorId: floorId,
+                                    floorName: floor.name,
+                                    trapId: trapSnapshot.id,
+                                    trap: trapSnapshot.trap,
+                                    inspectionCount: orderedInspections.count,
+                                    latestFindings: Int(findingsSeries.last ?? 0),
+                                    averageFindings: self.average(Array(findingsSeries)) ?? 0,
+                                    findingsDelta: self.delta(Array(findingsSeries)),
+                                    latestTemperature: temperatureSeries.last,
+                                    latestHumidity: humiditySeries.last,
+                                    topFindings: topFindings,
+                                    insectCounts: insectCounts,
+                                    roomKey: "\(entry.id)_\(floorId)",
+                                    roomLabel: "\(entry.client.name) · \(floor.name)"
+                                )
                             )
                         }
 
@@ -543,19 +695,29 @@ class FirestoreService: ObservableObject {
                             $0.naechstePruefung <= monthLimit
                         }.count
                         let nextInspection = traps.map(\.naechstePruefung).min()
-                        let orderedInspections = inspectionsByTrap.sorted { $0.datum < $1.datum }
+                        let orderedInspections = orderedInspectionsByRoom.sorted { $0.datum < $1.datum }
                         let findingsSeries = orderedInspections.suffix(8).map { inspection in
                             Double(inspection.befunde.values.reduce(0, +))
                         }
                         let temperatureSeries = orderedInspections.compactMap(\.temperatur).suffix(8)
                         let humiditySeries = orderedInspections.compactMap(\.luftfeuchtigkeit).suffix(8)
                         let latestFindings = orderedInspections.last.map { $0.befunde.values.reduce(0, +) } ?? 0
+                        let roomTopFindings = roomInsectCounts
+                            .sorted {
+                                if $0.value == $1.value {
+                                    return $0.key.localizedStandardCompare($1.key) == .orderedAscending
+                                }
+                                return $0.value > $1.value
+                            }
+                            .prefix(4)
+                            .map { DashboardFindingCount(name: $0.key, count: $0.value) }
 
                         clientTrapItems += trapItems
                         clientRooms.append(
                             DashboardRoomSummary(
                                 clientId: entry.id,
                                 clientName: entry.client.name,
+                                floorId: floorId,
                                 floor: floor,
                                 totalTrapCount: traps.count,
                                 overdueCount: overdueCount,
@@ -575,22 +737,26 @@ class FirestoreService: ObservableObject {
                                 latestHumidity: humiditySeries.last,
                                 averageHumidity: self.average(Array(humiditySeries)),
                                 humidityDelta: self.delta(Array(humiditySeries)),
-                                humiditySeries: Array(humiditySeries)
+                                humiditySeries: Array(humiditySeries),
+                                topFindings: roomTopFindings,
+                                insectCounts: roomInsectCounts
                             )
                         )
                     }
 
-                    return (clientTrapItems, clientRooms)
+                    return (clientTrapItems, clientRooms, clientTrapSummaries)
                 }
             }
 
             var trapItems: [DueTrapItem] = []
             var roomSummaries: [DashboardRoomSummary] = []
-            for try await (items, rooms) in group {
+            var trapSummaries: [DashboardTrapSummary] = []
+            for try await (items, rooms, traps) in group {
                 trapItems += items
                 roomSummaries += rooms
+                trapSummaries += traps
             }
-            return (trapItems, roomSummaries)
+            return (trapItems, roomSummaries, trapSummaries)
         }
 
         let sortedTrapItems = aggregated.0.sorted { lhs, rhs in
@@ -607,8 +773,21 @@ class FirestoreService: ObservableObject {
             }
             return leftScore > rightScore
         }
+        let sortedTrapSummaries = aggregated.2.sorted { lhs, rhs in
+            if lhs.latestFindings == rhs.latestFindings {
+                return lhs.trap.naechstePruefung < rhs.trap.naechstePruefung
+            }
+            return lhs.latestFindings > rhs.latestFindings
+        }
+        let insectSummaries = buildInsectSummaries(from: sortedTrapSummaries)
 
-        return DashboardSnapshot(clients: clients, trapItems: sortedTrapItems, roomSummaries: sortedRooms)
+        return DashboardSnapshot(
+            clients: clients,
+            trapItems: sortedTrapItems,
+            roomSummaries: sortedRooms,
+            trapSummaries: sortedTrapSummaries,
+            insectSummaries: insectSummaries
+        )
     }
 
     func fetchDueTraps() async throws -> [DueTrapItem] {

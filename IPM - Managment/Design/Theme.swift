@@ -35,6 +35,8 @@ enum IPMColors {
     static let brownMid  = Color(hex: "#8D6E63")
     static let mist      = Color(hex: "#F7F1E7")
     static let shadow    = Color(hex: "#2B1A0F")
+    static let glassWhite = Color(hex: "#FFFDF8")
+    static let glassGreen = Color(hex: "#D9F0CB")
 
     // Status
     static let ok       = Color(hex: "#558B2F")

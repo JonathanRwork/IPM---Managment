@@ -538,7 +538,7 @@ struct TrapDetailView: View {
                         .padding(.vertical, 16)
                         .listRowBackground(AdaptiveColor.card(scheme))
                     } else {
-                        ForEach(inspections) { inspection in
+                        ForEach(Array(inspections.enumerated()), id: \.element.id) { index, inspection in
                             NavigationLink(destination: InspectionDetailView(
                                 inspection: inspection,
                                 trap: trap,
@@ -547,10 +547,23 @@ struct TrapDetailView: View {
                             ) {
                                 await loadInspections()
                             }) {
-                                InspectionCard(inspection: inspection)
+                                VStack(spacing: 0) {
+                                    InspectionCard(
+                                        inspection: inspection,
+                                        previousInspection: index + 1 < inspections.count ? inspections[index + 1] : nil
+                                    )
+
+                                    if index < inspections.count - 1 {
+                                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                            .fill(IPMColors.brownMid.opacity(0.28))
+                                            .frame(height: 4)
+                                            .padding(.top, 12)
+                                            .padding(.horizontal, 2)
+                                    }
+                                }
                             }
                             .listRowBackground(AdaptiveColor.card(scheme))
-                            .listRowSeparatorTint(AdaptiveColor.cardSecondary(scheme))
+                            .listRowSeparator(.hidden)
                         }
                         .onDelete { indexSet in
                             Task {
@@ -725,7 +738,7 @@ private struct TrapPestTrendView: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "line.3.horizontal.decrease.circle")
-                        Text(ipmLocalized(appLanguage, de: "Filter", en: "Filter"))
+                        Text(metricTitle)
                         Image(systemName: "chevron.down")
                             .font(.system(size: 10, weight: .semibold))
                     }
@@ -843,13 +856,19 @@ struct InspectionCard: View {
     @Environment(\.colorScheme) var scheme
     @AppStorage("appLanguage") private var appLanguage = "de"
     let inspection: Inspection
+    let previousInspection: Inspection?
+
+    private var pestCount: Int { inspection.gesamtBefund }
+    private var previousPestCount: Int? { previousInspection?.gesamtBefund }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(inspection.datum.formatted(date: .abbreviated, time: .shortened))
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(AdaptiveColor.textPrimary(scheme))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(inspection.datum.formatted(date: .abbreviated, time: .shortened))
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(AdaptiveColor.textPrimary(scheme))
+                }
                 Spacer()
                 if inspection.gesamtBefund > 0 {
                     Label("\(inspection.gesamtBefund)", systemImage: "ant.fill")
@@ -868,37 +887,156 @@ struct InspectionCard: View {
                 }
             }
 
-            if let temp = inspection.temperatur, let hum = inspection.luftfeuchtigkeit {
-                HStack(spacing: 12) {
-                    Label("\(String(format: "%.1f", temp))°C", systemImage: "thermometer.medium")
-                    Label("\(String(format: "%.0f", hum))%", systemImage: "humidity")
+            HStack(spacing: 10) {
+                inspectionMetricPill(
+                    title: ipmLocalized(appLanguage, de: "Temperatur", en: "Temperature"),
+                    value: inspection.temperatur.map { "\(String(format: "%.1f", $0)) °C" } ?? "—",
+                    systemImage: "thermometer.medium",
+                    tint: IPMColors.warning
+                )
+                inspectionMetricPill(
+                    title: ipmLocalized(appLanguage, de: "Feuchte", en: "Humidity"),
+                    value: inspection.luftfeuchtigkeit.map { "\(String(format: "%.0f", $0)) %" } ?? "—",
+                    systemImage: "humidity",
+                    tint: IPMColors.green
+                )
+            }
+
+            if previousInspection != nil {
+                HStack(spacing: 8) {
+                    inspectionDeltaTag(
+                        title: ipmLocalized(appLanguage, de: "Befund", en: "Findings"),
+                        current: Double(pestCount),
+                        previous: previousPestCount.map(Double.init),
+                        unit: ""
+                    )
+                    inspectionDeltaTag(
+                        title: "°C",
+                        current: inspection.temperatur,
+                        previous: previousInspection?.temperatur,
+                        unit: "°C"
+                    )
+                    inspectionDeltaTag(
+                        title: "%",
+                        current: inspection.luftfeuchtigkeit,
+                        previous: previousInspection?.luftfeuchtigkeit,
+                        unit: "%"
+                    )
                 }
-                .font(.system(size: 12))
-                .foregroundStyle(IPMColors.brownMid)
             }
 
             let top = inspection.befunde.filter { $0.value > 0 }.sorted { $0.value > $1.value }.prefix(3)
             if !top.isEmpty {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 6) {
                     ForEach(Array(top), id: \.key) { art, anzahl in
-                        HStack(spacing: 6) {
-                            Circle().fill(IPMColors.befund).frame(width: 4, height: 4)
-                            Text("\(art): \(anzahl)")
-                                .font(.system(size: 11))
-                                .foregroundStyle(IPMColors.brownMid)
+                        HStack(spacing: 8) {
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                .fill(anzahl > 0 ? IPMColors.befund : IPMColors.brownMid.opacity(0.3))
+                                .frame(width: 5, height: 20)
+
+                            Text(art)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(AdaptiveColor.textPrimary(scheme))
+                                .lineLimit(1)
+
+                            Spacer(minLength: 8)
+
+                            Text("\(anzahl)")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundStyle(IPMColors.befund)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(IPMColors.befund.opacity(0.12))
+                                .clipShape(Capsule())
                         }
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 6)
+                        .background(AdaptiveColor.cardSecondary(scheme))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                 }
             }
 
             if !inspection.notizen.isEmpty {
                 Text(inspection.notizen)
-                    .font(.system(size: 11)).italic()
-                    .foregroundStyle(IPMColors.brownMid.opacity(0.7))
+                    .font(.system(size: 10.5))
+                    .italic()
+                    .foregroundStyle(IPMColors.brownMid.opacity(0.78))
                     .lineLimit(2)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 6)
+                    .background(AdaptiveColor.cardSecondary(scheme))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private func inspectionMetricPill(title: String, value: String, systemImage: String, tint: Color) -> some View {
+        HStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(tint.opacity(0.14))
+                    .frame(width: 28, height: 28)
+                Image(systemName: systemImage)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(tint)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(IPMColors.brownMid)
+                Text(value)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(AdaptiveColor.textPrimary(scheme))
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AdaptiveColor.cardSecondary(scheme))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private func inspectionDeltaTag(title: String, current: Double?, previous: Double?, unit: String) -> some View {
+        let deltaText: String
+        let tint: Color
+
+        if let current, let previous {
+            let delta = current - previous
+            if abs(delta) < 0.0001 {
+                deltaText = "0\(unit)"
+                tint = IPMColors.brownMid
+            } else {
+                let prefix = delta > 0 ? "+" : ""
+                if unit == "°C" {
+                    deltaText = "\(prefix)\(String(format: "%.1f", delta))\(unit)"
+                } else if unit == "%" {
+                    deltaText = "\(prefix)\(String(format: "%.0f", delta))\(unit)"
+                } else {
+                    deltaText = "\(prefix)\(Int(delta))"
+                }
+                tint = delta > 0 ? IPMColors.warning : IPMColors.ok
+            }
+        } else {
+            deltaText = "—"
+            tint = IPMColors.brownMid
+        }
+
+        return HStack(spacing: 5) {
+            Text(title)
+                .font(.system(size: 10, weight: .semibold))
+            Text(deltaText)
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(tint.opacity(0.1))
+        .clipShape(Capsule())
     }
 }
 
