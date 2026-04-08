@@ -33,6 +33,7 @@ struct LoginView: View {
     @State private var appear = false
     @State private var didInitialize = false
     @State private var showSignIn = false
+    @State private var heroFloat = false
 
     @State private var signInEmail = ""
     @State private var signInPassword = ""
@@ -98,14 +99,7 @@ struct LoginView: View {
 
     var body: some View {
         ZStack {
-            AdaptiveColor.background(scheme).ignoresSafeArea()
-
-            Circle()
-                .fill(IPMColors.green.opacity(0.06))
-                .frame(width: 420, height: 420)
-                .offset(x: 120, y: -220)
-                .blur(radius: 64)
-                .allowsHitTesting(false)
+            IPMAnimatedBackdrop()
 
             VStack(spacing: 0) {
                 topHeader
@@ -114,10 +108,10 @@ struct LoginView: View {
 
                 if showSignIn {
                     signInCard
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                        .transition(.ipmScreenSwap)
                 } else {
                     onboardingCard
-                        .transition(.move(edge: .leading).combined(with: .opacity))
+                        .transition(.ipmScreenSwap)
                 }
 
                 Spacer(minLength: 26)
@@ -126,7 +120,9 @@ struct LoginView: View {
             .padding(.top, 20)
             .opacity(appear ? 1 : 0)
             .offset(y: appear ? 0 : 14)
-            .animation(.spring(response: 0.6, dampingFraction: 0.86), value: appear)
+            .animation(IPMMotion.screenSpring, value: appear)
+            .animation(IPMMotion.screenSpring, value: showSignIn)
+            .animation(IPMMotion.sectionSpring, value: step)
         }
         .confirmationDialog(
             ipmLocalized(appLanguage, de: "Abo-Empfehlung", en: "Plan recommendation"),
@@ -154,6 +150,7 @@ struct LoginView: View {
         }
         .onAppear {
             appear = true
+            heroFloat = true
             if !didInitialize {
                 showSignIn = hasCompletedOnboarding
                 didInitialize = true
@@ -182,7 +179,7 @@ struct LoginView: View {
                 Spacer()
 
                 Button {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                    withAnimation(IPMMotion.sectionSpring) {
                         showSignIn.toggle()
                         auth.errorMessage = nil
                     }
@@ -196,8 +193,10 @@ struct LoginView: View {
                         .padding(.vertical, 8)
                         .background(AdaptiveColor.card(scheme))
                         .clipShape(Capsule())
+                        .shadow(color: IPMColors.shadow.opacity(0.05), radius: 8, y: 4)
                 }
             }
+            .ipmFlowEntrance(delay: 0.02)
 
             if !showSignIn {
                 VStack(alignment: .leading, spacing: 6) {
@@ -229,6 +228,7 @@ struct LoginView: View {
                     }
                     .frame(height: 8)
                 }
+                .ipmFlowEntrance(delay: 0.06)
             }
         }
     }
@@ -249,7 +249,8 @@ struct LoginView: View {
                 Circle()
                     .fill(.white.opacity(0.16))
                     .frame(width: 120, height: 120)
-                    .offset(x: 120, y: -50)
+                    .offset(x: heroFloat ? 132 : 112, y: heroFloat ? -58 : -44)
+                    .animation(.easeInOut(duration: 4.6).repeatForever(autoreverses: true), value: heroFloat)
 
                 VStack(alignment: .leading, spacing: 10) {
                     Label(ipmLocalized(appLanguage, de: "Sicherer Zugriff", en: "Secure access"), systemImage: "lock.shield.fill")
@@ -263,14 +264,19 @@ struct LoginView: View {
                 }
                 .padding(18)
             }
+            .shadow(color: IPMColors.green.opacity(0.18), radius: 26, y: 14)
+            .ipmFlowEntrance(delay: 0.08)
 
             Text(ipmLocalized(appLanguage, de: "Willkommen zurück", en: "Welcome back"))
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundStyle(AdaptiveColor.textPrimary(scheme))
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .ipmFlowEntrance(delay: 0.12)
 
             IPMTextField(placeholder: ipmLocalized(appLanguage, de: "E-Mail", en: "Email"), text: $signInEmail, icon: "envelope", keyboard: .emailAddress)
+                .ipmFlowEntrance(delay: 0.16)
             IPMTextField(placeholder: ipmLocalized(appLanguage, de: "Passwort", en: "Password"), text: $signInPassword, icon: "lock", isSecure: true)
+                .ipmFlowEntrance(delay: 0.2)
 
             if let error = auth.errorMessage {
                 HStack(spacing: 6) {
@@ -336,6 +342,7 @@ struct LoginView: View {
             .disabled(auth.isLoading)
         }
         .ipmCard(padding: 24)
+        .ipmFlowEntrance(delay: 0.1)
     }
 
     private var onboardingCard: some View {
@@ -373,7 +380,7 @@ struct LoginView: View {
             HStack(spacing: 10) {
                 if step > 0 {
                     Button {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                        withAnimation(IPMMotion.sectionSpring) {
                             step -= 1
                             auth.errorMessage = nil
                         }
@@ -415,6 +422,7 @@ struct LoginView: View {
             }
         }
         .ipmCard(padding: 24)
+        .ipmFlowEntrance(delay: 0.1)
     }
 
     private var onboardingWelcomeStep: some View {
@@ -626,7 +634,7 @@ struct LoginView: View {
         }
 
         if step < totalSteps - 1 {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+            withAnimation(IPMMotion.sectionSpring) {
                 step += 1
             }
             return

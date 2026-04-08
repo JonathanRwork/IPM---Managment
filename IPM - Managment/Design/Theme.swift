@@ -33,6 +33,8 @@ enum IPMColors {
     static let greenLight = Color(hex: "#A5D6A7")
     static let brown     = Color(hex: "#4E342E")
     static let brownMid  = Color(hex: "#8D6E63")
+    static let mist      = Color(hex: "#F7F1E7")
+    static let shadow    = Color(hex: "#2B1A0F")
 
     // Status
     static let ok       = Color(hex: "#558B2F")
@@ -40,6 +42,13 @@ enum IPMColors {
     static let warning  = Color(hex: "#E65100")
     static let critical = Color(hex: "#B71C1C")
     static let befund   = Color(hex: "#F9A825")
+}
+
+enum IPMMotion {
+    static let screenSpring = Animation.spring(response: 0.58, dampingFraction: 0.88)
+    static let sectionSpring = Animation.spring(response: 0.46, dampingFraction: 0.86)
+    static let pressSpring = Animation.spring(response: 0.24, dampingFraction: 0.82)
+    static let focusEase = Animation.easeInOut(duration: 0.22)
 }
 
 // MARK: - Adaptive Colors (Dark / Light automatisch)
@@ -69,7 +78,16 @@ struct IPMCardModifier: ViewModifier {
         content
             .padding(padding)
             .background(secondary ? AdaptiveColor.cardSecondary(scheme) : AdaptiveColor.card(scheme))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(.white.opacity(scheme == .dark ? 0.05 : 0.36), lineWidth: 1)
+            )
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .shadow(
+                color: IPMColors.shadow.opacity(scheme == .dark ? 0.24 : 0.08),
+                radius: secondary ? 10 : 18,
+                y: secondary ? 4 : 10
+            )
     }
 }
 

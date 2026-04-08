@@ -89,30 +89,38 @@ final class SubscriptionManager: ObservableObject {
 
     func canAddClient(currentCount: Int) -> String? {
         guard let max = limits.maxClients, currentCount >= max else { return nil }
-        return localizedSubscriptionMessage(
+        return ipmLocalized(
+            appLanguage,
             de: "Limit erreicht: Im \(tierTitle())-Abo sind maximal \(max) Kunden möglich. Bitte Upgrade durchführen.",
-            en: "Limit reached: The \(tierTitle()) plan allows up to \(max) clients. Please upgrade."
+            en: "Limit reached: The \(tierTitle()) plan allows up to \(max) clients. Please upgrade.",
+            fr: "Limite atteinte : Le forfait \(tierTitle()) permet jusqu'à \(max) clients. Veuillez passer à un forfait supérieur.",
+            ptBR: "Limite atingido: O plano \(tierTitle()) permite até \(max) clientes. Por favor, faça upgrade.",
+            nl: "Limiet bereikt: Het \(tierTitle())-abonnement staat maximaal \(max) klanten toe. Upgrade alsjeblieft."
         )
     }
 
     func canAddRoom(currentCountForClient: Int) -> String? {
         guard let max = limits.maxRoomsPerClient, currentCountForClient >= max else { return nil }
-        return localizedSubscriptionMessage(
+        return ipmLocalized(
+            appLanguage,
             de: "Limit erreicht: Im \(tierTitle())-Abo sind maximal \(max) Räume pro Kunde möglich. Bitte Upgrade durchführen.",
-            en: "Limit reached: The \(tierTitle()) plan allows up to \(max) rooms per client. Please upgrade."
+            en: "Limit reached: The \(tierTitle()) plan allows up to \(max) rooms per client. Please upgrade.",
+            fr: "Limite atteinte : Le forfait \(tierTitle()) permet jusqu'à \(max) pièces par client. Veuillez passer à un forfait supérieur.",
+            ptBR: "Limite atingido: O plano \(tierTitle()) permite até \(max) ambientes por cliente. Por favor, faça upgrade.",
+            nl: "Limiet bereikt: Het \(tierTitle())-abonnement staat maximaal \(max) ruimtes per klant toe. Upgrade alsjeblieft."
         )
     }
 
     func canAddTrap(currentCountForRoom: Int) -> String? {
         guard let max = limits.maxTrapsPerRoom, currentCountForRoom >= max else { return nil }
-        return localizedSubscriptionMessage(
+        return ipmLocalized(
+            appLanguage,
             de: "Limit erreicht: Im \(tierTitle())-Abo sind maximal \(max) Fallen pro Raum möglich. Bitte Upgrade durchführen.",
-            en: "Limit reached: The \(tierTitle()) plan allows up to \(max) traps per room. Please upgrade."
+            en: "Limit reached: The \(tierTitle()) plan allows up to \(max) traps per room. Please upgrade.",
+            fr: "Limite atteinte : Le forfait \(tierTitle()) permet jusqu'à \(max) pièges par pièce. Veuillez passer à un forfait supérieur.",
+            ptBR: "Limite atingido: O plano \(tierTitle()) permite até \(max) armadilhas por ambiente. Por favor, faça upgrade.",
+            nl: "Limiet bereikt: Het \(tierTitle())-abonnement staat maximaal \(max) vallen per ruimte toe. Upgrade alsjeblieft."
         )
-    }
-
-    private func localizedSubscriptionMessage(de: String, en: String) -> String {
-        appLanguage.lowercased().hasPrefix("de") ? de : en
     }
 }
 
@@ -423,7 +431,7 @@ class AuthManager: ObservableObject {
     }
 
     private func localized(de: String, en: String) -> String {
-        appLanguage.lowercased().hasPrefix("de") ? de : en
+        ipmLocalized(appLanguage, de: de, en: en)
     }
 
     private func commitProfileChanges(_ request: UserProfileChangeRequest) async throws {
@@ -501,9 +509,15 @@ struct RootView: View {
                     .environmentObject(auth)
                     .environmentObject(subscription)
                     .environmentObject(storeKit)
+                    .transition(.ipmScreenSwap)
             }
-            else { LoginView().environmentObject(auth) }
+            else {
+                LoginView()
+                    .environmentObject(auth)
+                    .transition(.ipmScreenSwap)
+            }
         }
+        .animation(IPMMotion.screenSpring, value: auth.isLoggedIn)
         .environment(\.locale, Locale(identifier: appLanguage))
         .task(id: auth.isLoggedIn) {
             if auth.isLoggedIn {

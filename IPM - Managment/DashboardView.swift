@@ -23,11 +23,12 @@ struct MainTabView: View {
 struct DashboardView: View {
     @Environment(\.colorScheme) private var scheme
     @AppStorage("appLanguage") private var appLanguage = "de"
+    @State private var hasAppeared = false
 
     var body: some View {
         NavigationStack {
             ZStack {
-                AdaptiveColor.background(scheme).ignoresSafeArea()
+                IPMAnimatedBackdrop()
 
                 VStack(alignment: .leading, spacing: 18) {
                     VStack(alignment: .leading, spacing: 6) {
@@ -38,6 +39,7 @@ struct DashboardView: View {
                             .font(.system(size: 34, weight: .bold, design: .rounded))
                             .foregroundStyle(AdaptiveColor.textPrimary(scheme))
                     }
+                    .ipmFlowEntrance(delay: 0.02)
 
                     ZStack(alignment: .bottomLeading) {
                         RoundedRectangle(cornerRadius: 22, style: .continuous)
@@ -59,7 +61,8 @@ struct DashboardView: View {
                         Circle()
                             .fill(.white.opacity(0.14))
                             .frame(width: 150, height: 150)
-                            .offset(x: 110, y: -70)
+                            .offset(x: hasAppeared ? 126 : 104, y: hasAppeared ? -78 : -58)
+                            .animation(.easeInOut(duration: 4).repeatForever(autoreverses: true), value: hasAppeared)
 
                         HStack(alignment: .bottom, spacing: 16) {
                             VStack(alignment: .leading, spacing: 10) {
@@ -85,9 +88,14 @@ struct DashboardView: View {
                                 .padding(16)
                                 .background(.white.opacity(0.14))
                                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                                .rotationEffect(.degrees(hasAppeared ? 0 : -7))
+                                .scaleEffect(hasAppeared ? 1 : 0.94)
+                                .animation(IPMMotion.screenSpring.delay(0.12), value: hasAppeared)
                         }
                         .padding(18)
                     }
+                    .shadow(color: IPMColors.green.opacity(0.2), radius: 28, y: 16)
+                    .ipmFlowEntrance(delay: 0.08)
 
                     VStack(alignment: .leading, spacing: 10) {
                         Text(ipmLocalized(appLanguage, de: "Wir bauen die Kunden-, Räume- und Fallenlogik gerade grundlegend neu auf.", en: "We are currently rebuilding the client, room, and trap logic from the ground up."))
@@ -99,6 +107,7 @@ struct DashboardView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .ipmCard(cornerRadius: 18)
+                    .ipmFlowEntrance(delay: 0.14)
 
                     NavigationLink(destination: ClientListView()) {
                         Label(
@@ -111,8 +120,10 @@ struct DashboardView: View {
                         .padding(.vertical, 14)
                         .background(IPMColors.green)
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .shadow(color: IPMColors.green.opacity(0.26), radius: 14, y: 8)
                     }
                     .buttonStyle(.plain)
+                    .ipmFlowEntrance(delay: 0.2)
 
                     Spacer()
                 }
@@ -120,6 +131,7 @@ struct DashboardView: View {
                 .padding(.top, 20)
             }
             .ipmNavigationBarHidden()
+            .onAppear { hasAppeared = true }
         }
     }
 
